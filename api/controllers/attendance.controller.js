@@ -48,27 +48,24 @@ export const checkIn = async (req, res) => {
       body.Address,
     ];
 
-    console.log();
-
-
     const sql = `
       INSERT INTO Attendance (
-        CompanyId,
-        EmployeeId,
-        CheckInTime,
-        CheckInLatitude,
-        CheckInLongitude,
-        CheckInSelfieUrl,
-        IsWithinGeoFence,
-        Remarks,
-        DynamicAddress,
-        LocationSource,
-        AccuracyMeters,
-        FaceVerified,
-        ImageTimestamp,
-        DeviceInfo,
-        LocalId,
-        Address
+        company_id,
+        employee_id,
+        check_in_time,
+        check_in_latitude,
+        check_in_longitude,
+        check_in_selfie_url,
+        is_within_geofence,
+        remarks,
+        dynamic_address,
+        location_source,
+        accuracy_meters,
+        face_verified,
+        image_timestamp,
+        device_info,
+        local_id,
+        address
       )
       VALUES (${values.map(() => "?").join(", ")})
     `;
@@ -124,7 +121,7 @@ export const checkOut = async (req, res) => {
 
     // Verify the attendance belongs to the user
     const attendanceCheck = await query(
-      "SELECT * FROM Attendance WHERE AttendanceId = ? AND EmployeeId = ? AND CompanyId = ?",
+      "SELECT * FROM Attendance WHERE attendance_id = ? AND employee_id = ? AND company_id = ?",
       [attendanceId, EmployeeId, CompanyId]
     );
 
@@ -152,22 +149,31 @@ export const checkOut = async (req, res) => {
     const body = req.body;
     const checkOutImageUrl = `/uploads/${req.file.filename}`;
 
-    const updateFields = [];
-    const values = [];
+    const updateMapping = {
+      CheckOutTime: "check_out_time",
+      CheckOutLatitude: "check_out_latitude",
+      CheckOutLongitude: "check_out_longitude",
+      Remarks: "remarks",
+      DynamicAddress: "dynamic_address",
+      LocationSource: "location_source",
+      AccuracyMeters: "accuracy_meters",
+      FaceVerified: "face_verified",
+      ImageTimestamp: "image_timestamp",
+      DeviceInfo: "device_info",
+      Address: "address",
+    };
 
-    // Add image URL
-    updateFields.push("CheckOutSelfieUrl = ?");
-    values.push(checkOutImageUrl);
+    const updateFields = ["check_out_selfie_url = ?"];
+    const values = [checkOutImageUrl];
 
-    // Add other fields from body
     Object.keys(body).forEach((key) => {
-      if (body[key] !== undefined) {
-        updateFields.push(`${key} = ?`);
+      if (body[key] !== undefined && updateMapping[key]) {
+        updateFields.push(`${updateMapping[key]} = ?`);
         values.push(body[key]);
       }
     });
 
-    const sql = `UPDATE Attendance SET ${updateFields.join(", ")} WHERE AttendanceId = ?`;
+    const sql = `UPDATE Attendance SET ${updateFields.join(", ")} WHERE attendance_id = ?`;
     values.push(attendanceId);
 
     await query(sql, values);
@@ -212,30 +218,52 @@ export const getAttendance = async (req, res) => {
 
     let sql = `
       SELECT
-        a.*,
-        c.CompanyName,
-        e.FullName AS EmployeeName,
-        e.EmployeeCode,
-        e.MobileNo
+        a.attendance_id AS AttendanceId,
+        a.company_id AS CompanyId,
+        a.employee_id AS EmployeeId,
+        a.check_in_time AS CheckInTime,
+        a.check_out_time AS CheckOutTime,
+        a.check_in_latitude AS CheckInLatitude,
+        a.check_in_longitude AS CheckInLongitude,
+        a.check_out_latitude AS CheckOutLatitude,
+        a.check_out_longitude AS CheckOutLongitude,
+        a.check_in_selfie_url AS CheckInSelfieUrl,
+        a.check_out_selfie_url AS CheckOutSelfieUrl,
+        a.is_within_geofence AS IsWithinGeoFence,
+        a.remarks AS Remarks,
+        a.dynamic_address AS DynamicAddress,
+        a.address AS Address,
+        a.location_source AS LocationSource,
+        a.accuracy_meters AS AccuracyMeters,
+        a.face_verified AS FaceVerified,
+        a.image_timestamp AS ImageTimestamp,
+        a.device_info AS DeviceInfo,
+        a.local_id AS LocalId,
+        a.created_at AS CreatedAt,
+        a.updated_at AS UpdatedAt,
+        c.company_name AS CompanyName,
+        e.full_name AS EmployeeName,
+        e.employee_code AS EmployeeCode,
+        e.mobile_no AS MobileNo
       FROM Attendance a
-      INNER JOIN Companies c ON a.CompanyId = c.CompanyId
-      INNER JOIN Employees e ON a.EmployeeId = e.EmployeeId
-      WHERE a.EmployeeId = ? AND a.CompanyId = ?
+      INNER JOIN Companies c ON a.company_id = c.company_id
+      INNER JOIN Employees e ON a.employee_id = e.employee_id
+      WHERE a.employee_id = ? AND a.company_id = ?
     `;
 
     const params = [EmployeeId, CompanyId];
 
     if (startDate) {
-      sql += " AND a.CheckInTime >= ?";
+      sql += " AND a.check_in_time >= ?";
       params.push(startDate);
     }
 
     if (endDate) {
-      sql += " AND a.CheckInTime <= ?";
+      sql += " AND a.check_in_time <= ?";
       params.push(endDate);
     }
 
-    sql += " ORDER BY a.AttendanceId DESC";
+    sql += " ORDER BY a.attendance_id DESC";
 
     const data = await query(sql, params);
 

@@ -1,34 +1,7 @@
 import { z } from "zod";
+import { dateTime, requiredNumber } from "./common.schema.js";
 
-const requiredNumber = (
-  field,
-  min,
-  max
-) =>
-  z.preprocess(
-    (value) => {
-      if (
-        value === "" ||
-        value === null ||
-        value === undefined
-      ) {
-        return undefined;
-      }
-
-      return value;
-    },
-    z.coerce.number({
-      required_error: `${field} is required`,
-      invalid_type_error: `${field} must be a number`,
-    })
-      .min(min, `${field} must be >= ${min}`)
-      .max(max, `${field} must be <= ${max}`)
-  );
-
-const isoDate = (field) =>
-  z.string().datetime({
-    message: `${field} must be valid ISO datetime`,
-  });
+const isoDate = dateTime; // preserve existing helper name for readability
 
 export const createAttendanceSchema = z.object({
   CheckInTime: isoDate("CheckInTime"),

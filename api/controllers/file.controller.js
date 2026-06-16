@@ -42,38 +42,38 @@ export const getAttendanceFile = async (req, res) => {
 
     let sql = `
       SELECT
-        a.AttendanceId,
-        DATE_FORMAT(a.CheckInTime, '%d-%m-%Y %h:%i %p') AS CheckInTime,
-        DATE_FORMAT(a.CheckOutTime, '%d-%m-%Y %h:%i %p') AS CheckOutTime,
-        a.Remarks,
-        a.DynamicAddress,
-        a.AccuracyMeters,
-        a.Address,
-        a.Status,
-        e.EmployeeCode,
-        e.FullName AS EmployeeName,
-        e.MobileNo
+        a.attendance_id AS AttendanceId,
+        DATE_FORMAT(a.check_in_time, '%d-%m-%Y %h:%i %p') AS CheckInTime,
+        DATE_FORMAT(a.check_out_time, '%d-%m-%Y %h:%i %p') AS CheckOutTime,
+        a.remarks AS Remarks,
+        a.dynamic_address AS DynamicAddress,
+        a.accuracy_meters AS AccuracyMeters,
+        a.address AS Address,
+        a.status AS Status,
+        e.employee_code AS EmployeeCode,
+        e.full_name AS EmployeeName,
+        e.mobile_no AS MobileNo
       FROM Attendance a
-      INNER JOIN Employees e ON a.EmployeeId = e.EmployeeId
+      INNER JOIN Employees e ON a.employee_id = e.employee_id
       WHERE 1=1
     `;
     const params = [];
 
     if (employeeId && employeeId !== "all") {
-      sql += ` AND a.EmployeeId = ?`;
+      sql += ` AND a.employee_id = ?`;
       params.push(employeeId);
     }
 
     // Date filter (IST date to UTC range)
     if (startDate) {
       const startUtc = getUtcDatetimeFromIstDate(startDate, false);
-      sql += ` AND a.CheckInTime >= ?`;
+      sql += ` AND a.check_in_time >= ?`;
       params.push(startUtc);
     }
 
     if (endDate) {
       const endUtc = getUtcDatetimeFromIstDate(endDate, true);
-      sql += ` AND a.CheckInTime <= ?`;
+      sql += ` AND a.check_in_time <= ?`;
       params.push(endUtc);
     }
 

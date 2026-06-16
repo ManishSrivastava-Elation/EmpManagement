@@ -93,10 +93,10 @@ export const loginEmployee = async (req, res) => {
     }
 
     const token = generateToken({
-      employee_id: user.employee_id,
-      company_id: user.company_id,
-      mobile_no: user.mobile_no,
-      email: user.email,
+      EmployeeId: user.employee_id,
+      CompanyId: user.company_id,
+      Mobile: user.mobile_no,
+      Email: user.email,
     });
 
     return apiResponse({
@@ -127,10 +127,10 @@ export const loginEmployee = async (req, res) => {
 
 export const updatePassword = async (req, res) => {
   try {
-    const { employee_id, company_id } = req.user || {};
+    const { EmployeeId, CompanyId } = req.user || {};
     const { oldPassword, newPassword, confirmPassword } = req.body;
     
-    if (!employee_id || !company_id) {
+    if (!EmployeeId || !CompanyId) {
       return apiResponse({
         res,
         success: false,
@@ -159,7 +159,7 @@ export const updatePassword = async (req, res) => {
 
     const users = await query(
       "SELECT password_hash FROM Employees WHERE employee_id = ? AND company_id = ?",
-      [employee_id, company_id]
+      [EmployeeId, CompanyId]
     );
 
     if (!users.length) {
@@ -188,7 +188,7 @@ export const updatePassword = async (req, res) => {
 
     await query(
       "UPDATE Employees SET password_hash = ? WHERE employee_id = ? AND company_id = ?",
-      [hashedPassword, employee_id, company_id]
+      [hashedPassword, EmployeeId, CompanyId]
     );
 
     return apiResponse({

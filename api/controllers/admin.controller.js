@@ -64,7 +64,7 @@ export const updateAttendanceStatus = async (req, res) => {
       });
     }
 
-    const sql = "UPDATE Attendance SET Status = ? WHERE AttendanceId = ?";
+    const sql = "UPDATE Attendance SET status = ? WHERE attendance_id = ?";
     await query(sql, [Status, attendanceId]);
 
     return apiResponse({
@@ -89,15 +89,37 @@ export const getAllAttendanceAdmin = async (req, res) => {
   try {
     const sql = `
       SELECT
-        a.*,
-        c.CompanyName,
-        e.FullName AS EmployeeName,
-        e.EmployeeCode,
-        e.MobileNo
+        a.attendance_id AS AttendanceId,
+        a.company_id AS CompanyId,
+        a.employee_id AS EmployeeId,
+        a.check_in_time AS CheckInTime,
+        a.check_out_time AS CheckOutTime,
+        a.check_in_latitude AS CheckInLatitude,
+        a.check_in_longitude AS CheckInLongitude,
+        a.check_out_latitude AS CheckOutLatitude,
+        a.check_out_longitude AS CheckOutLongitude,
+        a.check_in_selfie_url AS CheckInSelfieUrl,
+        a.check_out_selfie_url AS CheckOutSelfieUrl,
+        a.is_within_geofence AS IsWithinGeoFence,
+        a.remarks AS Remarks,
+        a.dynamic_address AS DynamicAddress,
+        a.address AS Address,
+        a.location_source AS LocationSource,
+        a.accuracy_meters AS AccuracyMeters,
+        a.face_verified AS FaceVerified,
+        a.image_timestamp AS ImageTimestamp,
+        a.device_info AS DeviceInfo,
+        a.local_id AS LocalId,
+        a.created_at AS CreatedAt,
+        a.updated_at AS UpdatedAt,
+        c.company_name AS CompanyName,
+        e.full_name AS EmployeeName,
+        e.employee_code AS EmployeeCode,
+        e.mobile_no AS MobileNo
       FROM Attendance a
-      INNER JOIN Companies c ON a.CompanyId = c.CompanyId
-      INNER JOIN Employees e ON a.EmployeeId = e.EmployeeId
-      ORDER BY a.AttendanceId DESC
+      INNER JOIN Companies c ON a.company_id = c.company_id
+      INNER JOIN Employees e ON a.employee_id = e.employee_id
+      ORDER BY a.attendance_id DESC
     `;
 
     const data = await query(sql);
@@ -176,7 +198,7 @@ export const adminCheckout = async (req, res) => {
     }
 
     const attendance = await query(
-      "SELECT AttendanceId FROM Attendance WHERE AttendanceId = ? AND CompanyId = ?",
+      "SELECT attendance_id FROM Attendance WHERE attendance_id = ? AND company_id = ?",
       [AttendanceId, CompanyId]
     );
 
@@ -185,7 +207,7 @@ export const adminCheckout = async (req, res) => {
     }
 
     await query(
-      "UPDATE Attendance SET CheckOutTime = ? WHERE AttendanceId = ?",
+      "UPDATE Attendance SET check_out_time = ? WHERE attendance_id = ?",
       [CheckOutTime, AttendanceId]
     );
 
@@ -246,12 +268,12 @@ export const adminAddAttendance = async (req, res) => {
     // ─────────────────────────────
     const sql = `
       INSERT INTO Attendance (
-        CompanyId,
-        EmployeeId,
-        CheckInTime,
-        Remarks,
-        Address,
-        CheckOutTime
+        company_id,
+        employee_id,
+        check_in_time,
+        remarks,
+        address,
+        check_out_time
       )
       VALUES (?, ?, ?, ?, ?, ?)
     `;
