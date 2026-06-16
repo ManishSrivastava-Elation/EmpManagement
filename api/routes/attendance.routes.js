@@ -11,20 +11,8 @@ import { createAttendanceSchema, updateAttendanceSchema } from "../validators/at
 
 const router = express.Router();
 
-router.post(
-  "/checkin",
-  authenticateToken,
-  upload.single("CheckInSelfieUrl"),
-  validateZod(createAttendanceSchema),
-  checkIn
-);
-router.put(
-  "/checkout/:attendanceId",
-  authenticateToken,
-  upload.single("CheckOutSelfieUrl"),
-  validateZod(updateAttendanceSchema),
-  checkOut
-);
+router.post("/checkin", authenticateToken, upload.single("CheckInSelfieUrl"), validateZod(createAttendanceSchema), checkIn );
+router.put("/checkout/:attendanceId", authenticateToken, upload.single("CheckOutSelfieUrl"), validateZod(updateAttendanceSchema), checkOut);
 router.get("/", authenticateToken, getAttendance);
 
 export default router;

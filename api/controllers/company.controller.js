@@ -251,6 +251,46 @@ export const getCompanies = async (req, res) => {
 };
 
 
+export const getCompanyOptions = async (req, res) => {
+    try {
+        const { search } = req.query;
+
+        let sql = `
+            SELECT 
+                company_id AS companyId,
+                company_name AS companyName
+            FROM Companies
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (search) {
+            sql += ` AND company_name LIKE ?`;
+            params.push(`%${search}%`);
+        }
+
+        sql += ` ORDER BY company_name ASC`;
+
+        const rows = await query(sql, params);
+
+        return apiResponse({
+            res,
+            message: "Company options fetched successfully",
+            data: rows,
+        });
+
+    } catch (err) {
+        return apiResponse({
+            res,
+            success: false,
+            statusCode: 500,
+            message: err.message,
+        });
+    }
+};
+
+
 export const updateCompany = async (req, res) => {
     try {
 
