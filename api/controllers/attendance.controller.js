@@ -32,21 +32,24 @@ export const checkIn = async (req, res) => {
     const values = [
       CompanyId,
       EmployeeId,
-      body.CheckInTime ?? null,
-      body.CheckInLatitude ?? null,
-      body.CheckInLongitude ?? null,
+      body.CheckInTime,
+      body.CheckInLatitude,
+      body.CheckInLongitude,
       checkInImageUrl,
-      body.IsWithinGeoFence ?? null,
-      body.Remarks ?? null,
-      body.DynamicAddress ?? null,
-      body.LocationSource ?? null,
-      body.AccuracyMeters ?? null,
-      body.FaceVerified ?? null,
-      body.ImageTimestamp ?? null,
-      body.DeviceInfo ?? null,
-      body.LocalId ?? null,
-      body.Address ?? null,
+      body.IsWithinGeoFence,
+      body.Remarks,
+      body.DynamicAddress,
+      body.LocationSource,
+      body.AccuracyMeters,
+      body.FaceVerified,
+      body.ImageTimestamp,
+      body.DeviceInfo,
+      body.LocalId,
+      body.Address,
     ];
+
+    console.log();
+
 
     const sql = `
       INSERT INTO Attendance (
@@ -76,7 +79,7 @@ export const checkIn = async (req, res) => {
       res,
       statusCode: 201,
       message: "Check-in successful",
-      data: { 
+      data: {
         AttendanceId: result.insertId,
         imageUrl: checkInImageUrl,
         fileName: req.file.filename,
@@ -172,7 +175,7 @@ export const checkOut = async (req, res) => {
     return apiResponse({
       res,
       message: "Check-out successful",
-      data: { 
+      data: {
         AttendanceId: attendanceId,
         imageUrl: checkOutImageUrl,
         fileName: req.file.filename,

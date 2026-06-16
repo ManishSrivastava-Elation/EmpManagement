@@ -3,6 +3,7 @@ import { createEmployee, loginEmployee, updatePassword } from "../controllers/au
 import { validateZod } from "../middlewares/validateZod.js";
 import { authenticateToken } from "../middlewares/auth.js";
 import upload from "../middlewares/upload.js";
+import { createCompanySchema } from "../validators/company.schema.js";
 import { createEmployeeSchema, loginEmployeeSchema, updatePasswordSchema } from "../validators/auth.schema.js";
 
 const router = express.Router();

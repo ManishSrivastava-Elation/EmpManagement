@@ -3,33 +3,32 @@ import { hashPassword, comparePassword } from "../services/password.service.js";
 import { generateToken } from "../services/jwt.service.js";
 import { apiResponse } from "../utils/response.js";
 import { validateUnique } from "../validators/custom.validators.js";
+import { log } from "console";
 
 export const createEmployee = async (req, res) => {
   try {
-    const { Email } = req.body;
+    const data = req.body;
 
+    // Check email uniqueness
     await validateUnique({
       table: "Employees",
-      column: "Email",
-      value: Email,
+      column: "email",
+      value: data.email,
     });
-
-    const role = req.body.Role || "employee";
 
     const sql = `
       INSERT INTO Employees
-      (CompanyId, EmployeeCode, FullName, MobileNo, Email, PasswordHash, Role)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (company_id, employee_code, full_name, mobile_no, email, password_hash)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const result = await query(sql, [
-      req.body.CompanyId,
-      req.body.EmployeeCode,
-      req.body.FullName,
-      req.body.MobileNo,
-      req.body.Email,
-      await hashPassword(req.body.Password),
-      role,
+      data.company_id,
+      data.employee_code,
+      data.full_name,
+      data.mobile_no,
+      data.email,
+      await hashPassword(data.password),
     ]);
 
     return apiResponse({
@@ -37,24 +36,23 @@ export const createEmployee = async (req, res) => {
       statusCode: 201,
       message: "Employee created successfully",
       data: {
-        EmployeeId: result.insertId,
-        Role: role,
+        employee_id: result.insertId,
       },
     });
 
   } catch (err) {
-    const statusCode = err.message?.includes("already exists")
-      ? 409
-      : err.code
+    const statusCode =
+      err.name === "ZodError"
         ? 400
-        : 500;
+        : err.message?.includes("already exists")
+          ? 409
+          : 500;
 
     return apiResponse({
       res,
       success: false,
       statusCode,
       message: err.message || "Employee creation failed",
-      error: err.message,
     });
   }
 };
@@ -62,11 +60,14 @@ export const createEmployee = async (req, res) => {
 
 export const loginEmployee = async (req, res) => {
   try {
-    const { MobileNo, Password } = req.body;
+    const { identifier, password } = req.body;
+
+    const isMobile = /^[6-9]\d{9}$/.test(identifier);
 
     const users = await query(
-      "SELECT * FROM Employees WHERE MobileNo = ?",
-      [MobileNo]
+      `SELECT * FROM Employees 
+       WHERE ${isMobile ? "mobile_no" : "email"} = ?`,
+      [isMobile ? identifier : identifier.toLowerCase()]
     );
 
     if (!users.length) {
@@ -80,7 +81,7 @@ export const loginEmployee = async (req, res) => {
 
     const user = users[0];
 
-    const isValid = await comparePassword(Password, user.PasswordHash);
+    const isValid = await comparePassword(password, user.password_hash);
 
     if (!isValid) {
       return apiResponse({
@@ -92,10 +93,10 @@ export const loginEmployee = async (req, res) => {
     }
 
     const token = generateToken({
-      EmployeeId: user.EmployeeId,
-      CompanyId: user.CompanyId,
-      MobileNo: user.MobileNo,
-      Role: user.Role
+      employee_id: user.employee_id,
+      company_id: user.company_id,
+      mobile_no: user.mobile_no,
+      email: user.email,
     });
 
     return apiResponse({
@@ -104,10 +105,11 @@ export const loginEmployee = async (req, res) => {
       data: {
         token,
         employee: {
-          EmployeeId: user.EmployeeId,
-          FullName: user.FullName,
-          MobileNo: user.MobileNo,
-          Role: user.Role,
+          CompanyId: user.company_id,
+          EmployeeId: user.employee_id,
+          FullName: user.full_name,
+          MobileNo: user.mobile_no,
+          Email: user.email,
         },
       },
     });
@@ -125,10 +127,10 @@ export const loginEmployee = async (req, res) => {
 
 export const updatePassword = async (req, res) => {
   try {
-    const { EmployeeId, CompanyId } = req.user || {};
+    const { employee_id, company_id } = req.user || {};
     const { oldPassword, newPassword, confirmPassword } = req.body;
-
-    if (!EmployeeId || !CompanyId) {
+    
+    if (!employee_id || !company_id) {
       return apiResponse({
         res,
         success: false,
@@ -142,7 +144,7 @@ export const updatePassword = async (req, res) => {
         res,
         success: false,
         statusCode: 400,
-        message: "Old password and New password could not be same",
+        message: "Old password and new password cannot be same",
       });
     }
 
@@ -156,8 +158,8 @@ export const updatePassword = async (req, res) => {
     }
 
     const users = await query(
-      "SELECT PasswordHash FROM Employees WHERE EmployeeId = ? AND CompanyId = ?",
-      [EmployeeId, CompanyId]
+      "SELECT password_hash FROM Employees WHERE employee_id = ? AND company_id = ?",
+      [employee_id, company_id]
     );
 
     if (!users.length) {
@@ -171,10 +173,22 @@ export const updatePassword = async (req, res) => {
 
     const user = users[0];
 
+    const isValid = await comparePassword(oldPassword, user.password_hash);
+
+    if (!isValid) {
+      return apiResponse({
+        res,
+        success: false,
+        statusCode: 401,
+        message: "Old password is incorrect",
+      });
+    }
+
     const hashedPassword = await hashPassword(newPassword);
+
     await query(
-      "UPDATE Employees SET PasswordHash = ? WHERE EmployeeId = ? AND CompanyId = ?",
-      [hashedPassword, EmployeeId, CompanyId]
+      "UPDATE Employees SET password_hash = ? WHERE employee_id = ? AND company_id = ?",
+      [hashedPassword, employee_id, company_id]
     );
 
     return apiResponse({

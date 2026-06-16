@@ -1,66 +1,196 @@
 import { z } from "zod";
 
+const requiredNumber = (
+  field,
+  min,
+  max
+) =>
+  z.preprocess(
+    (value) => {
+      if (
+        value === "" ||
+        value === null ||
+        value === undefined
+      ) {
+        return undefined;
+      }
+
+      return value;
+    },
+    z.coerce.number({
+      required_error: `${field} is required`,
+      invalid_type_error: `${field} must be a number`,
+    })
+      .min(min, `${field} must be >= ${min}`)
+      .max(max, `${field} must be <= ${max}`)
+  );
+
+const isoDate = (field) =>
+  z.string().datetime({
+    message: `${field} must be valid ISO datetime`,
+  });
+
 export const createAttendanceSchema = z.object({
-  CheckInTime: z.string().trim().min(1, "CheckInTime is required"),
-  CheckInLatitude: z.coerce.number(),
-  CheckInLongitude: z.coerce.number(),
-  CheckInSelfieUrl: z.string().trim().optional(),
-  IsWithinGeoFence: z.string(),
-  Remarks: z.string().trim().optional(),
-  DynamicAddress: z.string().trim(),
-  LocationSource: z.string().trim(),
-  AccuracyMeters: z.coerce.number().nonnegative(),
-  FaceVerified: z.string(),
-  ImageTimestamp: z.string().trim(),
-  DeviceInfo: z.string().trim().optional(),
-  LocalId: z.string().trim(),
-  Address: z.string().trim().optional(),
-});
+  CheckInTime: isoDate("CheckInTime"),
 
-export const updateAttendanceSchema = z.object({
-  CheckOutTime: z.string().trim().min(1, "CheckOutTime is required"),
-  CheckOutLatitude: z.coerce.number(),
-  CheckOutLongitude: z.coerce.number(),
-  CheckOutSelfieUrl: z.string().trim().optional(),
-  Remarks: z.string().trim().optional(),
-  DynamicAddress: z.string().trim(),
-  LocationSource: z.string().trim(),
-  AccuracyMeters: z.coerce.number().nonnegative(),
-  FaceVerified: z.string(),
-  ImageTimestamp: z.string().trim(),
-  DeviceInfo: z.string().trim().optional(),
-  Address: z.string().trim().optional(),
-}).refine((data) => Object.keys(data).length > 0, {
-  message: "At least one field must be provided for update",
-  path: [],
-});
+  CheckInLatitude: requiredNumber(
+    "CheckInLatitude",
+    -90,
+    90
+  ),
 
+  CheckInLongitude: requiredNumber(
+    "CheckInLongitude",
+    -180,
+    180
+  ),
 
-export const adminAddAttendanceSchema = z.object({
-  EmployeeId: z
-    .number()
-    .min(1, "EmployeeId must be greater than 0")
-    .max(999999999, "EmployeeId is too large"),
-
-  CheckInTime: z
+  CheckInSelfieUrl: z
     .string()
     .trim()
-    .min(3, "CheckInTime is required")
-    .max(50, "CheckInTime is too long"),
+    .url()
+    .optional(),
+
+  IsWithinGeoFence: z.coerce.boolean(),
 
   Remarks: z
     .string()
     .trim()
+    .max(500)
+    .optional(),
+
+  DynamicAddress: z
+    .string()
+    .trim()
+    .min(5)
+    .max(300),
+
+  LocationSource: z.enum([
+    "GPS",
+    "NETWORK",
+    "MANUAL",
+  ]),
+
+  AccuracyMeters: requiredNumber(
+    "AccuracyMeters",
+    0,
+    1000
+  ),
+
+  FaceVerified: z.coerce.boolean(),
+
+  ImageTimestamp: isoDate("ImageTimestamp"),
+
+  DeviceInfo: z
+    .string()
+    .trim()
+    .max(300)
+    .optional(),
+
+  LocalId: z
+    .string()
+    .trim()
+    .min(3)
+    .max(100)
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      "LocalId contains invalid characters"
+    ),
+
+  Address: z
+    .string()
+    .trim()
+    .max(500)
+    .optional(),
+});
+
+export const updateAttendanceSchema = z.object({
+  CheckOutTime: isoDate("CheckOutTime"),
+
+  CheckOutLatitude: requiredNumber(
+    "CheckOutLatitude",
+    -90,
+    90
+  ),
+
+  CheckOutLongitude: requiredNumber(
+    "CheckOutLongitude",
+    -180,
+    180
+  ),
+
+  CheckOutSelfieUrl: z
+    .string()
+    .trim()
+    .url()
+    .optional(),
+
+  Remarks: z
+    .string()
+    .trim()
+    .max(500)
+    .optional(),
+
+  DynamicAddress: z
+    .string()
+    .trim()
+    .min(5)
+    .max(300),
+
+  LocationSource: z.enum([
+    "GPS",
+    "NETWORK",
+    "MANUAL",
+  ]),
+
+  AccuracyMeters: requiredNumber(
+    "AccuracyMeters",
+    0,
+    1000
+  ),
+
+  FaceVerified: z.coerce.boolean(),
+
+  ImageTimestamp: isoDate("ImageTimestamp"),
+
+  DeviceInfo: z
+    .string()
+    .trim()
+    .max(300)
     .optional(),
 
   Address: z
     .string()
     .trim()
-    .min(3, "Address must be at least 3 characters")
-    .max(255, "Address cannot exceed 255 characters"),
-
-  CheckOutTime: z
-    .string()
-    .trim()
+    .max(500)
     .optional(),
 });
+
+export const adminAddAttendanceSchema =
+  z.object({
+    EmployeeId: z
+      .coerce
+      .number()
+      .int()
+      .positive(),
+
+    CheckInTime: isoDate(
+      "CheckInTime"
+    ),
+
+    Remarks: z
+      .string()
+      .trim()
+      .max(500)
+      .optional(),
+
+    Address: z
+      .string()
+      .trim()
+      .min(3)
+      .max(255),
+
+    CheckOutTime: isoDate(
+      "CheckOutTime"
+    ).optional(),
+  });
