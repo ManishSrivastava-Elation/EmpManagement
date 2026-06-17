@@ -91,20 +91,22 @@ export const createCompany = async (req, res) => {
 export const loginCompany = async (req, res) => {
     try {
 
-        const { email, password } = req.body;
+        const { identifier, password } = req.body;
 
-        if (!email || !password) {
+        if (!identifier || !password) {
             return apiResponse({
                 res,
                 success: false,
                 statusCode: 400,
-                message: "Email and password are required",
+                message: "Email or mobile and password are required",
             });
         }
 
+        const isMobile = /^[6-9]\d{9}$/.test(identifier);
+
         const rows = await query(
-            `SELECT * FROM Companies WHERE email = ?`,
-            [email]
+            `SELECT * FROM Companies WHERE ${isMobile ? "mobile" : "email"} = ?`,
+            [isMobile ? identifier : identifier.toLowerCase()]
         );
 
         if (!rows.length) {

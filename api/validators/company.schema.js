@@ -15,6 +15,6 @@ export const createCompanySchema = z.object({
 
 
 export const loginCompanySchema = z.object({
-    email: email("Email"),
+    identifier: z.string().trim().min(1, "Email or mobile is required"),
     password: password("Password"),
 });
