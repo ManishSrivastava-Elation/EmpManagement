@@ -7,12 +7,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { router } from "expo-router";
 
 import LoginHeader from "@/components/auth/login/LoginHeader";
 import LoginForm from "@/components/auth/login/LoginForm";
 import { theme } from "@/theme";
 import { companyLogin } from "@/services/company.service";
 import { employeeLogin } from "@/services/employee.service";
+import { saveAuth } from "@/services/storage.service";
 
 const { colors, spacing } = theme;
 
@@ -26,13 +28,17 @@ export default function Login() {
   }) => {
     setIsLoading(true);
     try {
-      const response =
-        data.userType === "company"
-          ? await companyLogin(data.identifier, data.password)
-          : await employeeLogin(data.identifier, data.password);
-      if (response) {
-        Alert.alert("Login Successful");
-      }
+      const isCompany = data.userType === "company";
+
+      const response = isCompany
+        ? await companyLogin(data.identifier, data.password)
+        : await employeeLogin(data.identifier, data.password);
+
+      const { token } = response?.data;
+      const user = isCompany ? response?.data?.company : response?.data?.employee;
+      const role = isCompany ? "company" : "employee";
+      await saveAuth(token, user, role);
+      router.replace((isCompany ? "/(company)" : "/(employee)") as any);
     } catch (err: any) {
       const message =
         err?.response?.data?.message || "Something went wrong. Please try again.";
