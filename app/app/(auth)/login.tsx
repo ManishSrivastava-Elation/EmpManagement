@@ -11,8 +11,8 @@ import { router } from "expo-router";
 import LoginHeader from "@/components/auth/login/LoginHeader";
 import LoginForm from "@/components/auth/login/LoginForm";
 import { theme } from "@/theme";
-import { companyLogin } from "@/services/company.service";
-import { employeeLogin } from "@/services/employee.service";
+import { companyLogin } from "@/services/auth/company.service";
+import { employeeLogin } from "@/services/auth/employee.service";
 import { saveAuth } from "@/services/storage.service";
 import { SafeAreaView } from "react-native-safe-area-context";
 

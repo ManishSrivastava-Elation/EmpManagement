@@ -7,6 +7,7 @@ export const baseImageUrl = 'http://192.168.1.44:8001';
 export const endpoints = {
     employee: {
         employeeLogin: `/auth/login`,
+        registerEmployee: `/auth/create`,
     },
     company: {
         companyLogin: `/companies/login`,

@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   TextInputProps,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 
 import { theme } from "../../theme";
@@ -20,7 +22,9 @@ type Props = TextInputProps & {
   type?: "text" | "password" | "email" | "number";
   prefix?: string;
   leftIcon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: React.ReactNode;
   disabled?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export default function FormInput({
@@ -30,7 +34,9 @@ export default function FormInput({
   type = "text",
   prefix,
   leftIcon,
+  rightIcon,
   disabled,
+  containerStyle,
   style,
   multiline,
   ...props
@@ -48,7 +54,7 @@ export default function FormInput({
       : props.keyboardType;
 
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, containerStyle]}>
       <Text style={styles.label}>
         {label}
         {required && <Text style={styles.required}> *</Text>}
@@ -92,6 +98,12 @@ export default function FormInput({
             style,
           ]}
         />
+
+        {rightIcon && (
+          <View style={styles.rightIconContainer}>
+            {rightIcon}
+          </View>
+        )}
 
         {isPassword && (
           <TouchableOpacity
@@ -190,6 +202,12 @@ const styles = StyleSheet.create({
 
   eyeBtn: {
     paddingHorizontal: spacing.sm,
+  },
+
+  rightIconContainer: {
+    paddingRight: spacing.md,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   errorText: {
