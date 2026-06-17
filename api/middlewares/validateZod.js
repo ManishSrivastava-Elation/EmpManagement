@@ -1,6 +1,7 @@
 import { apiResponse } from "../utils/response.js";
 
 export const validateZod = (schema) => (req, res, next) => {
+  console.log("okeyy", req.body)
   if (!req.body || Object.keys(req.body).length === 0) {
     return apiResponse({
       res,

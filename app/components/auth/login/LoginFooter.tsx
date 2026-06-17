@@ -12,7 +12,7 @@ export default function LoginFooter() {
         Don't have an account?{" "}
       </Text>
 
-      <Pressable onPress={() => router.replace("/registration")}>
+      <Pressable onPress={() => router.replace("/(auth)/registration")}>
         <Text style={styles.link}>Sign Up</Text>
       </Pressable>
     </View>

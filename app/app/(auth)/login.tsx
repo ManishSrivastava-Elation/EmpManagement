@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
@@ -15,6 +14,7 @@ import { theme } from "@/theme";
 import { companyLogin } from "@/services/company.service";
 import { employeeLogin } from "@/services/employee.service";
 import { saveAuth } from "@/services/storage.service";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { colors, spacing } = theme;
 

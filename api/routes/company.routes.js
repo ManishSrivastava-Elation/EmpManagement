@@ -7,7 +7,7 @@ import upload from "../middlewares/upload.js";
 
 const router = express.Router();
 
-router.post("/", validateZod(createCompanySchema), createCompany);
+router.post("/", upload.single("logo"), validateZod(createCompanySchema), createCompany);
 router.post("/login", validateZod(loginCompanySchema), loginCompany);
 router.get("/", authenticateToken, getCompanies);
 router.get("/options", getCompanyOptions);
