@@ -20,6 +20,7 @@ import * as ImagePicker from "expo-image-picker";
 import FormInput from "@/components/common/FormInput";
 import PrimaryButton from "@/components/common/PrimaryButton";
 import { theme } from "@/theme";
+import { registerCompany } from "@/services/auth/company.service";
 
 const { colors, spacing, fontSize, fontWeight, radius } = theme;
 
@@ -55,7 +56,7 @@ const companyRegistrationSchema = yup.object({
     .required("Mobile number is required")
     .matches(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number starting with 6-9"),
   company_logo: yup
-    .string()
+    .mixed()
     .nullable()
     .notRequired(),
   password: yup
@@ -75,13 +76,15 @@ const companyRegistrationSchema = yup.object({
     .oneOf([true], "You must accept the terms and conditions"),
 });
 
+type LogoFile = { uri: string; name: string; type: string };
+
 type CompanyFormData = {
   company_name: string;
   contact_person_name: string;
   designation: string;
   email: string;
   mobile: string;
-  company_logo: string | null;
+  company_logo: LogoFile | null;
   password: string;
   confirmPassword: string;
   termsAccepted: boolean;
@@ -162,22 +165,14 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
-        base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        const base64Image = result.assets[0].base64;
-        
-        // Store base64 or URI as needed
-        updateField("company_logo", base64Image || imageUri);
-        
-        console.log("📸 Logo selected:", {
-          uri: imageUri,
-          width: result.assets[0].width,
-          height: result.assets[0].height,
-          fileSize: result.assets[0].fileSize,
-        });
+        const asset = result.assets[0];
+        const fileName = asset.uri.split("/").pop() ?? "logo.jpg";
+        const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
+        const mimeType = ext === "png" ? "image/png" : ext === "jpeg" || ext === "jpg" ? "image/jpeg" : "image/*";
+        updateField("company_logo", { uri: asset.uri, name: fileName, type: mimeType });
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -186,46 +181,31 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
   };
 
   const handleSubmit = async () => {
-    const { confirmPassword, termsAccepted, ...registrationData } = formData;
-    
+    const { confirmPassword, termsAccepted, company_logo, ...registrationData } = formData;
+
     try {
       await companyRegistrationSchema.validate(formData, { abortEarly: false });
       setErrors({});
-      
-      // 🖨️ Console log the payload
-      console.log("🏢 Company Registration Payload:");
-      console.log("=================================");
-      console.log(JSON.stringify(registrationData, null, 2));
-      console.log("=================================");
-      
-      // Log individual fields for clarity
-      console.log("📋 Company Registration Details:");
-      console.log(`🏢 Company Name: ${registrationData.company_name}`);
-      console.log(`👤 Contact Person: ${registrationData.contact_person_name}`);
-      console.log(`💼 Designation: ${registrationData.designation}`);
-      console.log(`📧 Email: ${registrationData.email}`);
-      console.log(`📱 Mobile: ${registrationData.mobile}`);
-      console.log(`🖼️ Logo: ${registrationData.company_logo ? "Uploaded" : "Not uploaded"}`);
-      console.log(`🔒 Password: ${registrationData.password}`);
-      console.log("=================================");
+      setLocalLoading(true);
 
-      if (onRegister) {
-        onRegister(registrationData);
+      const res = await registerCompany({
+        ...registrationData,
+        logo: company_logo,
+      });
+
+      if (res.success) {
+        Alert.alert(
+          "Company Registered",
+          "Your company has been registered successfully! You can now log in.",
+          [{ text: "Go to Login", onPress: () => router.replace("/login") }]
+        );
+      } else if (res.statusCode === 409) {
+        Alert.alert("Already Exists", res.message ?? "Company already registered.");
       } else {
-        setLocalLoading(true);
-        setTimeout(() => {
-          setLocalLoading(false);
-          Alert.alert(
-            "Company Registered",
-            "Your company has been registered successfully! You can now log in.",
-            [
-              {
-                text: "Go to Login",
-                onPress: () => router.replace("/login"),
-              },
-            ]
-          );
-        }, 1800);
+        const messages = Array.isArray(res.error)
+          ? res.error.map((e: { message: string }) => e.message).join("\n")
+          : res.message ?? "Registration failed.";
+        Alert.alert("Error", messages);
       }
     } catch (err) {
       if (err instanceof yup.ValidationError) {
@@ -234,10 +214,11 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
           if (e.path) fieldErrors[e.path as keyof CompanyFormData] = e.message;
         });
         setErrors(fieldErrors);
-        
-        // 🖨️ Log validation errors
-        console.log("❌ Validation Errors:", fieldErrors);
+      } else {
+        Alert.alert("Error", "Something went wrong. Please try again.");
       }
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -288,11 +269,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
               >
                 {formData.company_logo ? (
                   <Image
-                    source={{ 
-                      uri: formData.company_logo.startsWith('data:image') 
-                        ? formData.company_logo 
-                        : formData.company_logo 
-                    }}
+                    source={{ uri: formData.company_logo.uri }}
                     style={styles.logoPreview}
                     resizeMode="cover"
                   />

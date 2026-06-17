@@ -11,6 +11,7 @@ export const endpoints = {
     },
     company: {
         companyLogin: `/companies/login`,
-        options: `/companies/options`
+        options: `/companies/options`,
+        companyRegister: `/companies`
     }
 };
