@@ -18,6 +18,8 @@ export const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = verifyToken(token);
+    console.log(`Decoded Token: ${JSON.stringify(decoded)}`);
+    
     req.user = decoded;
     next();
   } catch (err) {

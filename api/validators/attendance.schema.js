@@ -18,12 +18,6 @@ export const createAttendanceSchema = z.object({
     180
   ),
 
-  CheckInSelfieUrl: z
-    .string()
-    .trim()
-    .url()
-    .optional(),
-
   IsWithinGeoFence: z.coerce.boolean(),
 
   Remarks: z
@@ -92,12 +86,6 @@ export const updateAttendanceSchema = z.object({
     180
   ),
 
-  CheckOutSelfieUrl: z
-    .string()
-    .trim()
-    .url()
-    .optional(),
-
   Remarks: z
     .string()
     .trim()
@@ -122,7 +110,7 @@ export const updateAttendanceSchema = z.object({
     1000
   ),
 
-  FaceVerified: z.coerce.boolean(),
+  FaceVerified: z.coerce.boolean().optional().default(true),
 
   ImageTimestamp: isoDate("ImageTimestamp"),
 

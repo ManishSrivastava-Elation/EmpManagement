@@ -15,7 +15,7 @@ export const registerEmployee = async (payload: {
 }) => {
   const { data } = await api.post(endpoints.employee.registerEmployee, {
     ...payload,
-    employee_code: "EMP001",
+    employee_code: "EMP002",
   });
   return data;
 };

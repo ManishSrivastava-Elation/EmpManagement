@@ -132,9 +132,9 @@ export const loginCompany = async (req, res) => {
         }
 
         const token = generateToken({
-            companyId: company.company_id,
-            email: company.email,
-            role: "COMPANY",
+            CompanyId: company.company_id,
+            Email: company.email,
+            Role: "company",
         });
 
         return apiResponse({

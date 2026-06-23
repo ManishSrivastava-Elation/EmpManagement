@@ -29,7 +29,6 @@ export const validateZod = (schema) => (req, res, next) => {
       error: errors.length ? errors : [{ field: null, message: "Invalid request data" }],
     });
   }
-
   req.body = result.data;
   next();
 };

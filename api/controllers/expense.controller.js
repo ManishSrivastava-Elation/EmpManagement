@@ -55,12 +55,12 @@ export const getExpenses = async (req, res) => {
     e.EmployeeId,
     e.Amount,
     e.ReceiptUrl,
-    emp.FullName AS EmployeeName,
+    emp.full_name AS EmployeeName,
     e.Title,
     e.Description,
     e.Status
   FROM Expenses e
-  INNER JOIN Employees emp ON e.EmployeeId = emp.EmployeeId
+  INNER JOIN Employees emp ON e.EmployeeId = emp.employee_id
   WHERE e.CompanyId = ?
     AND MONTH(e.ExpenseDate) = ?
     AND YEAR(e.ExpenseDate) = ?
@@ -106,7 +106,7 @@ export const getExpenses = async (req, res) => {
 
 export const getExpenseTypes = async (req, res) => {
   try {
-    const data = await query("SELECT id, name FROM expense_types WHERE status = 'active' ORDER BY name ASC");
+    const data = await query("SELECT id, name FROM ExpenseTypes WHERE status = 'active' ORDER BY name ASC");
     return apiResponse({ res, message: "Expense types fetched successfully", data });
   } catch (err) {
     return apiResponse({ res, success: false, statusCode: 500, message: "Failed to fetch expense types", error: err.message });
@@ -119,8 +119,8 @@ export const updateExpenseStatus = async (req, res) => {
     const { expenseId } = req.params;
     const { Status } = req.body;
 
-    if (Role !== "admin") {
-      return apiResponse({ res, success: false, statusCode: 403, message: "Only admin can change expense status" });
+    if (Role !== "company") {
+      return apiResponse({ res, success: false, statusCode: 403, message: "Only company admin can change expense status" });
     }
 
     const validStatuses = ["pending", "approved", "rejected", "paid"];

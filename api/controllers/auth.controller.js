@@ -97,6 +97,7 @@ export const loginEmployee = async (req, res) => {
       CompanyId: user.company_id,
       Mobile: user.mobile_no,
       Email: user.email,
+      Role: "employee",
     });
 
     return apiResponse({

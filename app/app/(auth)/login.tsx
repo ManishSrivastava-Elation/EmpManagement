@@ -29,10 +29,13 @@ export default function Login() {
     setIsLoading(true);
     try {
       const isCompany = data.userType === "company";
+console.log(isCompany);
 
       const response = isCompany
         ? await companyLogin(data.identifier, data.password)
         : await employeeLogin(data.identifier, data.password);
+
+      
 
       const { token } = response?.data;
       const user = isCompany ? response?.data?.company : response?.data?.employee;

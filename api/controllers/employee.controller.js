@@ -1,31 +1,114 @@
 import { query } from "../utils/dbQuery.js";
 import { apiResponse } from "../utils/response.js";
 
-export const getAllEmployeesAdmin = async (req, res) => {
+export const getAllEmployees = async (req, res) => {
   try {
-    const sql = `
+    const {
+      employeeId,
+      companyId,
+      status,
+      startDate,
+      endDate,
+      sortBy = "created_at",
+      order = "DESC",
+    } = req.query;
+
+    const allowedSort = [
+      "employee_id",
+      "company_id",
+      "employee_code",
+      "full_name",
+      "email",
+      "status",
+      "created_at",
+    ];
+
+    const allowedOrder = ["ASC", "DESC"];
+
+    const finalSort =
+      allowedSort.includes(sortBy)
+        ? sortBy
+        : "created_at";
+
+    const finalOrder =
+      allowedOrder.includes(order.toUpperCase())
+        ? order.toUpperCase()
+        : "DESC";
+
+    let sql = `
       SELECT
-        e.EmployeeId,
-        e.CompanyId,
-        c.CompanyName,
-        e.EmployeeCode,
-        e.FullName,
-        e.MobileNo,
-        e.Email,
-        e.IsActive,
-        e.CreatedAt,
-        e.Role
+        e.employee_id,
+        e.company_id,
+        c.company_name,
+        e.employee_code,
+        e.full_name,
+        e.mobile_no,
+        e.email,
+        e.status,
+        e.created_at,
+        e.updated_at
       FROM Employees e
-      INNER JOIN Companies c ON e.CompanyId = c.CompanyId
-      WHERE e.Role = 'employee'
-      ORDER BY e.CreatedAt DESC
+      INNER JOIN Companies c
+        ON e.company_id = c.company_id
+      WHERE 1=1
     `;
 
-    const data = await query(sql);
+    const params = [];
+
+    // Employee Filter
+    if (employeeId) {
+      sql += ` AND e.employee_id = ?`;
+      params.push(employeeId);
+    }
+
+    // Company Filter
+    if (companyId) {
+      sql += ` AND e.company_id = ?`;
+      params.push(companyId);
+    }
+
+    // Status Filter
+    if (status) {
+      sql += ` AND e.status = ?`;
+      params.push(status.toUpperCase());
+    }
+
+    // Date Range Filter
+    if (startDate && endDate) {
+      sql += `
+        AND DATE(e.created_at)
+        BETWEEN ? AND ?
+      `;
+      params.push(startDate, endDate);
+    } else if (startDate) {
+      sql += ` AND DATE(e.created_at) >= ?`;
+      params.push(startDate);
+    } else if (endDate) {
+      sql += ` AND DATE(e.created_at) <= ?`;
+      params.push(endDate);
+    }
+
+    sql += `
+      ORDER BY e.${finalSort}
+      ${finalOrder}
+    `;
+
+    const data = await query(sql, params);
 
     return apiResponse({
       res,
-      message: "All employees fetched successfully",
+      success: true,
+      message: "Employees fetched successfully",
+      filters: {
+        employeeId,
+        companyId,
+        status,
+        startDate,
+        endDate,
+        sortBy: finalSort,
+        order: finalOrder,
+      },
+      total: data.length,
       data,
     });
 
@@ -40,106 +123,57 @@ export const getAllEmployeesAdmin = async (req, res) => {
   }
 };
 
-export const updateAttendanceStatus = async (req, res) => {
+export const updateEmployeeStatus = async (req, res) => {
   try {
-    const { Role } = req.user || {};
-    const { attendanceId } = req.params;
-    const { Status } = req.body;
-
-    if (Role !== 'admin') {
-      return apiResponse({
-        res,
-        success: false,
-        statusCode: 403,
-        message: "Forbidden: Only admins can update status",
-      });
+    const { CompanyId, Role } = req.user || {};
+    // Only users with company role can update employee status
+    if (Role !== 'company') {
+      return apiResponse({ res, success: false, statusCode: 403, message: 'Only company role can update employee status' });
     }
 
-    if (!attendanceId || !Status) {
-      return apiResponse({
-        res,
-        success: false,
-        statusCode: 400,
-        message: "Attendance ID and Status are required",
-      });
+    const employeeId = req.params.id;
+    const { status } = req.body;
+
+    if (!employeeId || !status) {
+      return apiResponse({ res, success: false, statusCode: 400, message: 'Employee id and status are required' });
     }
 
-    const sql = "UPDATE Attendance SET status = ? WHERE attendance_id = ?";
-    await query(sql, [Status, attendanceId]);
+    const allowed = ['ACTIVE', 'INACTIVE', 'BLOCKED'];
+    const newStatus = String(status).toUpperCase();
+    if (!allowed.includes(newStatus)) {
+      return apiResponse({ res, success: false, statusCode: 400, message: 'Invalid status value' });
+    }
 
-    return apiResponse({
-      res,
-      message: `Attendance status updated to ${Status} successfully`,
-      data: { attendanceId, Status },
-    });
+    const emp = await query(
+      'SELECT employee_id, company_id FROM Employees WHERE employee_id = ?',
+      [employeeId]
+    );
 
+    if (!emp.length) {
+      return apiResponse({ res, success: false, statusCode: 404, message: 'Employee not found' });
+    }
+
+    if (emp[0].company_id !== CompanyId) {
+      return apiResponse({ res, success: false, statusCode: 403, message: 'You do not have permission to modify this employee' });
+    }
+
+    await query(
+      'UPDATE Employees SET status = ?, updated_at = NOW() WHERE employee_id = ?',
+      [newStatus, employeeId]
+    );
+
+    return apiResponse({ res, success: true, message: 'Employee status updated', data: { employee_id: employeeId, status: newStatus } });
   } catch (err) {
-    return apiResponse({
-      res,
-      success: false,
-      statusCode: 500,
-      message: "Failed to update attendance status",
-      error: err.message,
-    });
+    return apiResponse({ res, success: false, statusCode: 500, message: 'Failed to update employee status', error: err.message });
   }
 };
 
 
-export const getAllAttendanceAdmin = async (req, res) => {
-  try {
-    const sql = `
-      SELECT
-        a.attendance_id AS AttendanceId,
-        a.company_id AS CompanyId,
-        a.employee_id AS EmployeeId,
-        a.check_in_time AS CheckInTime,
-        a.check_out_time AS CheckOutTime,
-        a.check_in_latitude AS CheckInLatitude,
-        a.check_in_longitude AS CheckInLongitude,
-        a.check_out_latitude AS CheckOutLatitude,
-        a.check_out_longitude AS CheckOutLongitude,
-        a.check_in_selfie_url AS CheckInSelfieUrl,
-        a.check_out_selfie_url AS CheckOutSelfieUrl,
-        a.is_within_geofence AS IsWithinGeoFence,
-        a.remarks AS Remarks,
-        a.dynamic_address AS DynamicAddress,
-        a.address AS Address,
-        a.location_source AS LocationSource,
-        a.accuracy_meters AS AccuracyMeters,
-        a.face_verified AS FaceVerified,
-        a.image_timestamp AS ImageTimestamp,
-        a.device_info AS DeviceInfo,
-        a.local_id AS LocalId,
-        a.created_at AS CreatedAt,
-        a.updated_at AS UpdatedAt,
-        c.company_name AS CompanyName,
-        e.full_name AS EmployeeName,
-        e.employee_code AS EmployeeCode,
-        e.mobile_no AS MobileNo
-      FROM Attendance a
-      INNER JOIN Companies c ON a.company_id = c.company_id
-      INNER JOIN Employees e ON a.employee_id = e.employee_id
-      ORDER BY a.attendance_id DESC
-    `;
 
-    const data = await query(sql);
 
-    return apiResponse({
-      res,
-      message: "All attendance fetched successfully",
-      data,
-    });
 
-  } catch (err) {
-    return apiResponse({
-      res,
-      success: false,
-      statusCode: 500,
-      message: "Failed to fetch attendance",
-      error: err.message,
-    });
-  }
-};
+
+///  old
 
 
 export const adminAddExpense = async (req, res) => {

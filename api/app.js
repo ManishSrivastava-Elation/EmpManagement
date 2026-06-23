@@ -2,19 +2,21 @@ import express from "express";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger.js";
 import { testConnection } from "./dbConfig/db.js";
 import companyRoutes from "./routes/company.routes.js";
-import employeeRoutes from "./routes/auth.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
-import adminRoutes from "./routes/admin.routes.js";
+import employeeRoutes from "./routes/employee.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import fileRouter from "./routes/file.routes.js";
 import upload from "./middlewares/upload.js";
 import { apiResponse } from "./utils/response.js";
 
 const app = express();
+dotenv.config();
 const PORT = process.env.PORT || 3000;
-dotenv.config(); 
  
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,11 +47,15 @@ app.post("/api/upload", upload.single("image"), (req, res) => {
   });
 });  
 
+
+// Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // routes
 app.use("/api/companies", companyRoutes);
-app.use("/api/auth", employeeRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/employee", employeeRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/files", fileRouter);
 
