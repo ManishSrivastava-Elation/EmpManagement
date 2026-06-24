@@ -13,7 +13,7 @@ import LoginForm from "@/components/auth/login/LoginForm";
 import { theme } from "@/theme";
 import { companyLogin } from "@/services/auth/company.service";
 import { employeeLogin } from "@/services/auth/employee.service";
-import { saveAuth } from "@/services/storage.service";
+import { saveSession } from "@/services/storage.service";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { colors, spacing } = theme;
@@ -38,10 +38,14 @@ console.log(isCompany);
       
 
       const { token } = response?.data;
-      const user = isCompany ? response?.data?.company : response?.data?.employee;
-      const role = isCompany ? "company" : "employee";
-      await saveAuth(token, user, role);
-      router.replace((isCompany ? "/(company)" : "/(employee)") as any);
+      const role = isCompany ? 'company' : 'employee';
+
+      const profile = isCompany
+        ? { name: response?.data?.company?.company_name ?? '', email: response?.data?.company?.email ?? '' }
+        : { name: response?.data?.employee?.FullName ?? '', email: response?.data?.employee?.Email ?? '' };
+
+      await saveSession({ token, role, profile });
+      router.replace((isCompany ? '/(company)' : '/(employee)') as any);
     } catch (err: any) {
       const message =
         err?.response?.data?.message || "Something went wrong. Please try again.";

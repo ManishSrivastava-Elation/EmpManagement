@@ -366,6 +366,11 @@ export const getAttendance = async (req, res) => {
       dataParams.push(status);
     }
 
+    // ── Pagination ─────────────────────────────────────────────
+    const pageNum  = Math.max(1, parseInt(req.query.page  ?? "1"));
+    const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit ?? "10")));
+    const offset   = (pageNum - 1) * limitNum;
+
     const attendanceSql = `
       SELECT
        a.attendance_id AS AttendanceId,
@@ -403,6 +408,7 @@ export const getAttendance = async (req, res) => {
         ON e.employee_id=a.employee_id
       ${dataWhere}
       ORDER BY a.attendance_id DESC
+      LIMIT ? OFFSET ?
     `;
 
     const countSql = `
@@ -415,9 +421,13 @@ export const getAttendance = async (req, res) => {
       ${baseWhere}
     `;
 
-    const data = await query(attendanceSql, dataParams);
+    const [data, [metaRow]] = await Promise.all([
+      query(attendanceSql, [...dataParams, limitNum, offset]),
+      query(countSql, baseParams),
+    ]);
 
-    const [metaRow] = await query(countSql, baseParams);
+    const total      = Number(metaRow.total   || 0);
+    const totalPages = Math.ceil(total / limitNum);
 
     return apiResponse({
       res,
@@ -425,10 +435,15 @@ export const getAttendance = async (req, res) => {
       message: "Attendance fetched successfully",
       data,
       meta: {
-        total: Number(metaRow.total || 0),
-        pending: Number(metaRow.pending || 0),
-        approved: Number(metaRow.approved || 0),
-        rejected: Number(metaRow.rejected || 0),
+        page:        pageNum,
+        limit:       limitNum,
+        total,
+        totalPages,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+        pending:     Number(metaRow.pending  || 0),
+        approved:    Number(metaRow.approved || 0),
+        rejected:    Number(metaRow.rejected || 0),
       },
     });
   } catch (err) {

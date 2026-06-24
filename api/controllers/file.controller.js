@@ -1,6 +1,15 @@
 import ExcelJS from "exceljs";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
 import { query } from "../utils/dbQuery.js";
 import { apiResponse } from "../utils/response.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
+const REPORTS_DIR = path.join(__dirname, "uploads", "reports");
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 
 // ==============================
 // 📌 COMMON STATUS STYLE FUNCTION
@@ -43,8 +52,8 @@ export const getAttendanceFile = async (req, res) => {
     let sql = `
       SELECT
         a.attendance_id AS AttendanceId,
-        DATE_FORMAT(a.check_in_time, '%d-%m-%Y %h:%i %p') AS CheckInTime,
-        DATE_FORMAT(a.check_out_time, '%d-%m-%Y %h:%i %p') AS CheckOutTime,
+        DATE_FORMAT(CONVERT_TZ(a.check_in_time, '+00:00', '+05:30'), '%d-%m-%Y %h:%i %p') AS CheckInTime,
+        DATE_FORMAT(CONVERT_TZ(a.check_out_time, '+00:00', '+05:30'), '%d-%m-%Y %h:%i %p') AS CheckOutTime,
         a.remarks AS Remarks,
         a.dynamic_address AS DynamicAddress,
         a.accuracy_meters AS AccuracyMeters,
@@ -64,6 +73,7 @@ export const getAttendanceFile = async (req, res) => {
       params.push(employeeId);
     }
 
+
     // Date filter (IST date to UTC range)
     if (startDate) {
       const startUtc = getUtcDatetimeFromIstDate(startDate, false);
@@ -77,7 +87,7 @@ export const getAttendanceFile = async (req, res) => {
       params.push(endUtc);
     }
 
-    sql += ` ORDER BY a.AttendanceId DESC`;
+    sql += ` ORDER BY a.attendance_id DESC`;
 
     const data = await query(sql, params);
 
@@ -275,5 +285,186 @@ export const getExpensesFile = async (req, res) => {
       error: err.message,
     });
 
+  }
+};
+
+// ==============================
+// 📌 COMPANY ATTENDANCE REPORT (scoped to company_id from JWT)
+// ==============================
+export const getCompanyAttendanceFile = async (req, res) => {
+  try {
+    const { CompanyId } = req.user || {};
+    if (!CompanyId) {
+      return apiResponse({ res, success: false, statusCode: 401, message: "Unauthorized" });
+    }
+
+    const { employeeId, startDate, endDate } = req.query;
+
+    let sql = `
+      SELECT
+        a.attendance_id AS AttendanceId,
+        DATE_FORMAT(CONVERT_TZ(a.check_in_time, '+00:00', '+05:30'), '%d-%m-%Y %h:%i %p') AS CheckInTime,
+        DATE_FORMAT(CONVERT_TZ(a.check_out_time, '+00:00', '+05:30'), '%d-%m-%Y %h:%i %p') AS CheckOutTime,
+        a.remarks AS Remarks,
+        a.dynamic_address AS DynamicAddress,
+        a.accuracy_meters AS AccuracyMeters,
+        a.address AS Address,
+        a.status AS Status,
+        e.employee_code AS EmployeeCode,
+        e.full_name AS EmployeeName,
+        e.mobile_no AS MobileNo
+      FROM Attendance a
+      INNER JOIN Employees e ON a.employee_id = e.employee_id
+      WHERE a.company_id = ?
+    `;
+    const params = [CompanyId];
+
+    if (employeeId && employeeId !== "all") {
+      sql += ` AND a.employee_id = ?`;
+      params.push(employeeId);
+    }
+
+    if (startDate) {
+      const startUtc = getUtcDatetimeFromIstDate(startDate, false);
+      sql += ` AND a.check_in_time >= ?`;
+      params.push(startUtc);
+    }
+
+    if (endDate) {
+      const endUtc = getUtcDatetimeFromIstDate(endDate, true);
+      sql += ` AND a.check_in_time <= ?`;
+      params.push(endUtc);
+    }
+
+    sql += ` ORDER BY a.attendance_id DESC`;
+
+    const data = await query(sql, params);
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Attendance Report");
+
+    sheet.columns = [
+      { header: "ID",              key: "AttendanceId",    width: 10 },
+      { header: "Check In Time",   key: "CheckInTime",     width: 22 },
+      { header: "Check Out Time",  key: "CheckOutTime",    width: 22 },
+      { header: "Site Name",       key: "Address",         width: 22 },
+      { header: "Dynamic Address", key: "DynamicAddress",  width: 40 },
+      { header: "Accuracy (m)",    key: "AccuracyMeters",  width: 15 },
+      { header: "Status",          key: "Status",          width: 12 },
+      { header: "Remarks",         key: "Remarks",         width: 25 },
+      { header: "Emp Code",        key: "EmployeeCode",    width: 15 },
+      { header: "Employee Name",   key: "EmployeeName",    width: 22 },
+      { header: "Mobile No",       key: "MobileNo",        width: 15 },
+    ];
+
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "2F5597" } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+
+    data.forEach((item) => {
+      const row = sheet.addRow(item);
+      row.alignment = { vertical: "middle" };
+      formatStatusCell(row.getCell(7), item.Status);
+    });
+
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = { from: "A1", to: "K1" };
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=attendance-report.xlsx");
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    return apiResponse({ res, success: false, statusCode: 500, message: "Excel generation failed", error: err.message });
+  }
+};
+
+// ==============================
+// 📌 COMPANY EXPENSE REPORT (scoped to company_id from JWT)
+// ==============================
+export const getCompanyExpensesFile = async (req, res) => {
+  try {
+    const { CompanyId } = req.user || {};
+    if (!CompanyId) {
+      return apiResponse({ res, success: false, statusCode: 401, message: "Unauthorized" });
+    }
+
+    const { employeeId, startDate, endDate } = req.query;
+
+    let sql = `
+      SELECT
+        e.ExpenseId,
+        e.Title,
+        e.Description,
+        e.Amount,
+        DATE_FORMAT(e.ExpenseDate, '%d-%m-%Y') AS FormattedExpenseDate,
+        e.Status,
+        emp.employee_code AS EmployeeCode,
+        emp.full_name AS EmployeeName
+      FROM Expenses e
+      INNER JOIN Employees emp ON e.EmployeeId = emp.employee_id
+      WHERE e.CompanyId = ?
+    `;
+    const params = [CompanyId];
+
+    if (employeeId && employeeId !== "all") {
+      sql += ` AND e.EmployeeId = ?`;
+      params.push(employeeId);
+    }
+
+    if (startDate) {
+      const startUtc = getUtcDatetimeFromIstDate(startDate, false);
+      sql += ` AND e.ExpenseDate >= ?`;
+      params.push(startUtc);
+    }
+
+    if (endDate) {
+      const endUtc = getUtcDatetimeFromIstDate(endDate, true);
+      sql += ` AND e.ExpenseDate <= ?`;
+      params.push(endUtc);
+    }
+
+    sql += ` ORDER BY e.ExpenseId DESC`;
+
+    const data = await query(sql, params);
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Expenses Report");
+
+    sheet.columns = [
+      { header: "ID",            key: "ExpenseId",             width: 10 },
+      { header: "Title",         key: "Title",                 width: 20 },
+      { header: "Description",   key: "Description",           width: 35 },
+      { header: "Amount (₹)",    key: "Amount",                width: 15 },
+      { header: "Date",          key: "FormattedExpenseDate",  width: 22 },
+      { header: "Status",        key: "Status",                width: 15 },
+      { header: "Emp Code",      key: "EmployeeCode",          width: 15 },
+      { header: "Employee Name", key: "EmployeeName",          width: 22 },
+    ];
+
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "2F5597" } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+
+    data.forEach((item) => {
+      const row = sheet.addRow(item);
+      row.alignment = { vertical: "middle" };
+      row.getCell(4).numFmt = '"₹"#,##0.00';
+      formatStatusCell(row.getCell(6), item.Status);
+    });
+
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = { from: "A1", to: "H1" };
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=expenses-report.xlsx");
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    return apiResponse({ res, success: false, statusCode: 500, message: "Excel generation failed", error: err.message });
   }
 };

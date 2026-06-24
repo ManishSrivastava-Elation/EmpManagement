@@ -82,7 +82,12 @@ export interface AttendanceFilters {
 }
 
 export interface AttendanceMeta {
+  page: number;
+  limit: number;
   total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
   pending: number;
   approved: number;
   rejected: number;

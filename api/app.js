@@ -11,6 +11,7 @@ import attendanceRoutes from "./routes/attendance.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import fileRouter from "./routes/file.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 import upload from "./middlewares/upload.js";
 import { apiResponse } from "./utils/response.js";
 
@@ -58,6 +59,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/files", fileRouter);
+app.use("/api/admin", adminRoutes);
 
 // Api testing route
 app.get("/api", (req, res) => {

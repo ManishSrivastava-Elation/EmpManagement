@@ -32,5 +32,14 @@ export const endpoints = {
     getAll: `/expense`,
     create: `/expense`,
     types: `/expense/types`,
+    updateStatus: (id: number) => `/expense/${id}`,
+  },
+  companyDashboard: {
+    stats: `/admin/dashboard/stats`,
+    expenseByType: `/admin/dashboard/expense-by-type`,
+  },
+  files: {
+    companyAttendance: `/files/company/attendance`,
+    companyExpenses: `/files/company/expenses`,
   },
 };

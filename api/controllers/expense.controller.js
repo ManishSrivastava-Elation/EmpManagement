@@ -27,72 +27,126 @@ export const createExpense = async (req, res) => {
 export const getExpenses = async (req, res) => {
   try {
     const { EmployeeId, CompanyId, Role } = req.user || {};
-    const { month, year } = req.query;
+    const { startDate, endDate, status, search, page = 1, limit = 10 } = req.query;
 
-    const m = month ? parseInt(month) : new Date().getMonth() + 1;
-    const y = year ? parseInt(year) : new Date().getFullYear();
-
-    // 🔹 Base query
-    let baseWhere = `
-      FROM Expenses e
-      WHERE e.CompanyId = ?
-        AND MONTH(e.ExpenseDate) = ?
-        AND YEAR(e.ExpenseDate) = ?
-    `;
-
-    const params = [CompanyId, m, y];
-
-    if (Role === "employee") {
-      baseWhere += " AND e.EmployeeId = ?";
-      params.push(EmployeeId);
+    const allowedStatus = ["pending", "approved", "rejected", "paid"];
+    if (status && !allowedStatus.includes(status)) {
+      return apiResponse({ res, success: false, statusCode: 400, message: "Invalid status" });
     }
 
-    // 🔹 Get expense list
-    const listSql = `
-  SELECT
-    e.ExpenseId,
-    CONVERT_TZ(e.ExpenseDate, '+00:00', '+05:30') AS ExpenseDate,
-    e.EmployeeId,
-    e.Amount,
-    e.ReceiptUrl,
-    emp.full_name AS EmployeeName,
-    e.Title,
-    e.Description,
-    e.Status
-  FROM Expenses e
-  INNER JOIN Employees emp ON e.EmployeeId = emp.employee_id
-  WHERE e.CompanyId = ?
-    AND MONTH(e.ExpenseDate) = ?
-    AND YEAR(e.ExpenseDate) = ?
-    ${Role === "employee" ? "AND e.EmployeeId = ?" : ""}
-  ORDER BY e.ExpenseId DESC
-`;
+    if (startDate && isNaN(Date.parse(startDate))) {
+      return apiResponse({ res, success: false, statusCode: 400, message: "Invalid startDate" });
+    }
+    if (endDate && isNaN(Date.parse(endDate))) {
+      return apiResponse({ res, success: false, statusCode: 400, message: "Invalid endDate" });
+    }
 
-    const data = await query(listSql, params);
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
 
-    // 🔹 Get counts (IMPORTANT)
+    // Base WHERE — used for counts (no status filter)
+    let baseWhere = ` WHERE 1=1`;
+    const baseParams = [];
+
+    // Data WHERE — includes status filter
+    let dataWhere = ` WHERE 1=1`;
+    const dataParams = [];
+
+    const addFilter = (clause, ...vals) => {
+      baseWhere += clause;
+      dataWhere += clause;
+      baseParams.push(...vals);
+      dataParams.push(...vals);
+    };
+
+    // Role filter
+    if (Role === "employee") {
+      addFilter(` AND e.EmployeeId=? AND e.CompanyId=?`, EmployeeId, CompanyId);
+    } else if (Role === "company") {
+      addFilter(` AND e.CompanyId=?`, CompanyId);
+    }
+
+    // Date range
+    if (startDate && endDate) {
+      addFilter(` AND DATE(e.ExpenseDate) BETWEEN ? AND ?`, startDate, endDate);
+    } else if (startDate) {
+      addFilter(` AND DATE(e.ExpenseDate) >= ?`, startDate);
+    } else if (endDate) {
+      addFilter(` AND DATE(e.ExpenseDate) <= ?`, endDate);
+    }
+
+    // Search (employee name, title, description)
+    if (search && search.trim()) {
+      const like = `%${search.trim()}%`;
+      const clause = ` AND (emp.full_name LIKE ? OR e.Title LIKE ? OR e.Description LIKE ?)`;
+      baseWhere += clause;
+      dataWhere += clause;
+      baseParams.push(like, like, like);
+      dataParams.push(like, like, like);
+    }
+
+    // Status filter only on data query
+    if (status) {
+      dataWhere += ` AND e.Status=?`;
+      dataParams.push(status);
+    }
+
+    const dataSql = `
+      SELECT
+        e.ExpenseId,
+        CONVERT_TZ(e.ExpenseDate, '+00:00', '+05:30') AS ExpenseDate,
+        e.EmployeeId,
+        e.Amount,
+        e.ReceiptUrl,
+        emp.full_name AS EmployeeName,
+        e.Title,
+        e.Description,
+        e.Status
+      FROM Expenses e
+      INNER JOIN Employees emp ON e.EmployeeId = emp.employee_id
+      ${dataWhere}
+      ORDER BY e.ExpenseId DESC
+      LIMIT ? OFFSET ?
+    `;
+
     const countSql = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN e.Status = 'pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN e.Status = 'approved' THEN 1 ELSE 0 END) AS approved,
-        SUM(CASE WHEN e.Status = 'paid' THEN 1 ELSE 0 END) AS paid,
-        SUM(CASE WHEN e.Status = 'rejected' THEN 1 ELSE 0 END) AS rejected
+        SUM(e.Status='pending') AS pending,
+        SUM(e.Status='approved') AS approved,
+        SUM(e.Status='rejected') AS rejected,
+        SUM(e.Status='paid') AS paid
+      FROM Expenses e
+      INNER JOIN Employees emp ON e.EmployeeId = emp.employee_id
       ${baseWhere}
     `;
 
-    const countResult = await query(countSql, params);
-    const counts = countResult[0];
+    const [data, countResult] = await Promise.all([
+      query(dataSql, [...dataParams, limitNum, offset]),
+      query(countSql, baseParams),
+    ]);
+
+    const { total, pending, approved, rejected, paid } = countResult[0];
+    const totalNum = Number(total || 0);
+    const totalPages = Math.ceil(totalNum / limitNum);
 
     return apiResponse({
       res,
       message: "Expenses fetched successfully",
       data,
       meta: {
-        counts,
+        page: pageNum,
+        limit: limitNum,
+        total: totalNum,
+        totalPages,
+        hasNextPage: pageNum < totalPages,
+        pending: Number(pending || 0),
+        approved: Number(approved || 0),
+        rejected: Number(rejected || 0),
+        paid: Number(paid || 0),
       },
     });
-
   } catch (err) {
     return apiResponse({
       res,

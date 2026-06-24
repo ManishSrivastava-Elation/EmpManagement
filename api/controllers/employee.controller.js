@@ -3,37 +3,25 @@ import { apiResponse } from "../utils/response.js";
 
 export const getAllEmployees = async (req, res) => {
   try {
+    const { CompanyId, Role } = req.user || {};
+
+    if (!Role || (Role !== 'company' && Role !== 'superadmin')) {
+      return apiResponse({ res, success: false, statusCode: 403, message: 'Access denied' });
+    }
+
     const {
-      employeeId,
-      companyId,
       status,
       startDate,
       endDate,
+      search,
       sortBy = "created_at",
       order = "DESC",
     } = req.query;
 
-    const allowedSort = [
-      "employee_id",
-      "company_id",
-      "employee_code",
-      "full_name",
-      "email",
-      "status",
-      "created_at",
-    ];
-
+    const allowedSort = ["employee_id", "company_id", "employee_code", "full_name", "email", "status", "created_at"];
     const allowedOrder = ["ASC", "DESC"];
-
-    const finalSort =
-      allowedSort.includes(sortBy)
-        ? sortBy
-        : "created_at";
-
-    const finalOrder =
-      allowedOrder.includes(order.toUpperCase())
-        ? order.toUpperCase()
-        : "DESC";
+    const finalSort  = allowedSort.includes(sortBy) ? sortBy : "created_at";
+    const finalOrder = allowedOrder.includes(order.toUpperCase()) ? order.toUpperCase() : "DESC";
 
     let sql = `
       SELECT
@@ -48,24 +36,18 @@ export const getAllEmployees = async (req, res) => {
         e.created_at,
         e.updated_at
       FROM Employees e
-      INNER JOIN Companies c
-        ON e.company_id = c.company_id
+      INNER JOIN Companies c ON e.company_id = c.company_id
       WHERE 1=1
     `;
 
     const params = [];
 
-    // Employee Filter
-    if (employeeId) {
-      sql += ` AND e.employee_id = ?`;
-      params.push(employeeId);
-    }
-
-    // Company Filter
-    if (companyId) {
+    // ── Role-based scoping from token ────────────────────────────
+    if (Role === 'company') {
       sql += ` AND e.company_id = ?`;
-      params.push(companyId);
+      params.push(CompanyId);
     }
+    // superadmin: no company filter — sees all
 
     // Status Filter
     if (status) {
@@ -73,12 +55,16 @@ export const getAllEmployees = async (req, res) => {
       params.push(status.toUpperCase());
     }
 
+    // Search Filter
+    if (search && search.trim()) {
+      sql += ` AND (e.full_name LIKE ? OR e.employee_code LIKE ? OR e.email LIKE ?)`;
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s);
+    }
+
     // Date Range Filter
     if (startDate && endDate) {
-      sql += `
-        AND DATE(e.created_at)
-        BETWEEN ? AND ?
-      `;
+      sql += ` AND DATE(e.created_at) BETWEEN ? AND ?`;
       params.push(startDate, endDate);
     } else if (startDate) {
       sql += ` AND DATE(e.created_at) >= ?`;
@@ -88,28 +74,36 @@ export const getAllEmployees = async (req, res) => {
       params.push(endDate);
     }
 
-    sql += `
-      ORDER BY e.${finalSort}
-      ${finalOrder}
-    `;
+    // ── Pagination ───────────────────────────────────────────────
+    const pageNum  = Math.max(1, parseInt(req.query.page  ?? "1"));
+    const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit ?? "10")));
+    const offset   = (pageNum - 1) * limitNum;
 
-    const data = await query(sql, params);
+    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) AS total FROM');
+
+    sql += ` ORDER BY e.${finalSort} ${finalOrder} LIMIT ? OFFSET ?`;
+
+    const [data, [countRow]] = await Promise.all([
+      query(sql, [...params, limitNum, offset]),
+      query(countSql, params),
+    ]);
+
+    const total      = Number(countRow?.total || 0);
+    const totalPages = Math.ceil(total / limitNum);
 
     return apiResponse({
       res,
       success: true,
       message: "Employees fetched successfully",
-      filters: {
-        employeeId,
-        companyId,
-        status,
-        startDate,
-        endDate,
-        sortBy: finalSort,
-        order: finalOrder,
-      },
-      total: data.length,
       data,
+      meta: {
+        page:        pageNum,
+        limit:       limitNum,
+        total,
+        totalPages,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      },
     });
 
   } catch (err) {

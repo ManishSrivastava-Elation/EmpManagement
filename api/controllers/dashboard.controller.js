@@ -16,7 +16,7 @@ export const getDashboardStats = async (req, res) => {
     const empResult = await query(
       `SELECT COUNT(*) AS totalEmployees
        FROM Employees
-       WHERE CompanyId = ? AND Role = 'employee' AND IsActive = 1`,
+       WHERE company_id = ? AND status = 'ACTIVE'`,
       [CompanyId]
     );
 

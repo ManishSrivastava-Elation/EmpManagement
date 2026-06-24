@@ -1,37 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
-import { clearAuth, getRole, getUser } from '../../services/storage.service';
+import { getSession, clearSession, type UserSession } from '../../services/storage.service';
 import { roleConfig, type RoleType, type DrawerItem } from '../../utils/roleConfig';
 import { colors } from '../../theme/colors';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
   const pathname = usePathname();
-  const [role, setRole] = useState<RoleType>('employee');
-  const [user, setUser] = useState<any>(null);
+  const [session, setSession] = useState<UserSession | null>(null);
 
   useEffect(() => {
-    Promise.all([getRole(), getUser()]).then(([r, u]) => {
-      setRole((r as RoleType) || 'employee');
-      setUser(u);
-    });
+    getSession().then(setSession);
   }, []);
 
+  const role: RoleType = session?.role ?? 'employee';
   const config = roleConfig[role];
 
   const handlePress = async (item: DrawerItem) => {
     if (item.actionType === 'logout') {
       props.navigation.closeDrawer();
-      await clearAuth();
+      await clearSession();
       router.replace('/(auth)/login' as any);
     } else if (item.route) {
       props.navigation.closeDrawer();
@@ -39,7 +30,10 @@ export default function CustomDrawer(props: any) {
     }
   };
 
-  const getSegment = (route?: string) => route?.split('/').filter(Boolean).pop() || '';
+  const getSegment = (route?: string) => route?.split('/').filter(Boolean).pop() ?? '';
+
+  const name = session?.profile?.name || 'User';
+  const email = session?.profile?.email || '';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -48,14 +42,18 @@ export default function CustomDrawer(props: any) {
         <View style={styles.avatar}>
           <Ionicons name="person" size={32} color={colors.white} />
         </View>
-        <Text style={styles.name}>{user?.name || user?.companyName || 'User'}</Text>
+        <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        {!!email && <Text style={styles.email} numberOfLines={1}>{email}</Text>}
         <Text style={styles.roleLabel}>{role === 'company' ? 'Company Admin' : 'Employee'}</Text>
       </View>
 
       {/* Nav Items */}
       <DrawerContentScrollView {...props} scrollEnabled={false}>
         {config.drawer.map((item, index) => {
-          const active = item.route ? pathname.endsWith(getSegment(item.route)) || (getSegment(item.route) === '' && pathname.split('/').length <= 2) : false;
+          const active = item.route
+            ? pathname.endsWith(getSegment(item.route)) ||
+              (getSegment(item.route) === '' && pathname.split('/').length <= 2)
+            : false;
           const isLogout = item.actionType === 'logout';
           return (
             <TouchableOpacity
@@ -68,7 +66,13 @@ export default function CustomDrawer(props: any) {
                 size={22}
                 color={isLogout ? colors.danger : active ? colors.primary : colors.text}
               />
-              <Text style={[styles.label, active && !isLogout && styles.activeLabel, isLogout && styles.logoutLabel]}>
+              <Text
+                style={[
+                  styles.label,
+                  active && !isLogout && styles.activeLabel,
+                  isLogout && styles.logoutLabel,
+                ]}
+              >
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -89,7 +93,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 32,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   avatar: {
     width: 64,
@@ -98,16 +102,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   name: {
     color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  email: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontWeight: '400',
   },
   roleLabel: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 11,
+    marginTop: 2,
   },
   item: {
     flexDirection: 'row',

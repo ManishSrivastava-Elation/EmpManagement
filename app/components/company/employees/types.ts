@@ -31,6 +31,13 @@ export interface EmployeeApiResponse {
   message: string;
   data: EmployeeApiItem[];
   error: boolean;
-  meta: null;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
   timestamp: string;
 }

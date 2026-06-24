@@ -1,6 +1,8 @@
 import { api } from '@/api/api';
 import { endpoints } from '@/api/apis';
 
+export type ExpenseStatus = 'approved' | 'pending' | 'rejected';
+
 export interface ApiExpense {
   ExpenseId: number;
   ExpenseDate: string;
@@ -9,21 +11,34 @@ export interface ApiExpense {
   Title: string;
   Description: string;
   Amount: string;
-  Status: 'approved' | 'pending' | 'rejected' | 'paid';
+  Status: ExpenseStatus;
   ReceiptUrl?: string;
 }
 
-export interface MetaCounts {
+export interface ExpenseMeta {
+  page: number;
+  limit: number;
   total: number;
-  pending: string;
-  approved: string;
-  paid: string;
-  rejected: string;
+  totalPages: number;
+  hasNextPage: boolean;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface ExpenseFilters {
+  startDate?: string;
+  endDate?: string;
+  status?: 'all' | ExpenseStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ExpenseListResponse {
+  success: boolean;
   data: ApiExpense[];
-  meta?: { counts: MetaCounts };
+  meta: ExpenseMeta;
 }
 
 export interface ExpenseType {
@@ -31,8 +46,18 @@ export interface ExpenseType {
   name: string;
 }
 
-export const getUserExpenses = async (month: number, year: number): Promise<ExpenseListResponse> => {
-  const response = await api.get(endpoints.expense.getAll, { params: { month, year } });
+export const getExpenses = async (filters?: ExpenseFilters): Promise<ExpenseListResponse> => {
+  const params: Record<string, string> = {};
+  if (filters?.startDate) params.startDate = filters.startDate;
+  if (filters?.endDate) params.endDate = filters.endDate;
+  if (filters?.status && filters.status !== 'all') params.status = filters.status;
+  if (filters?.search?.trim()) params.search = filters.search.trim();
+  if (filters?.page !== undefined) params.page = String(filters.page);
+  if (filters?.limit !== undefined) params.limit = String(filters.limit);
+
+  const response = await api.get(endpoints.expense.getAll, { params });
+  console.log(("expance api in emp is called ............"));
+  
   return response.data;
 };
 
