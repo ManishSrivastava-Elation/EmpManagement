@@ -20,15 +20,13 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import { theme } from "@/theme";
 import { companyOptionsList } from "@/services/auth/company.service";
 import { registerEmployee } from "@/services/auth/employee.service";
+import Footer from "@/components/common/Footer";
 
 const { colors, spacing, fontSize, fontWeight, radius } = theme;
 
 // Enhanced validation schema
 const registrationSchema = yup.object({
-  company_id: yup
-    .number()
-    .nullable()
-    .required("Please select your company"),
+  company_id: yup.number().nullable().required("Please select your company"),
   full_name: yup
     .string()
     .trim()
@@ -45,19 +43,22 @@ const registrationSchema = yup.object({
     .string()
     .trim()
     .required("Mobile number is required")
-    .matches(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number starting with 6-9"),
+    .matches(
+      /^[6-9]\d{9}$/,
+      "Enter a valid 10-digit mobile number starting with 6-9",
+    ),
   password: yup
     .string()
     .required("Password is required")
     .min(8, "Password must be at least 8 characters")
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain uppercase, lowercase, number & special character"
+      "Password must contain uppercase, lowercase, number & special character",
     ),
   confirmPassword: yup
     .string()
     .required("Please confirm your password")
-    .oneOf([yup.ref('password')], "Passwords don't match"),
+    .oneOf([yup.ref("password")], "Passwords don't match"),
   termsAccepted: yup
     .boolean()
     .oneOf([true], "You must accept the terms and conditions"),
@@ -77,7 +78,9 @@ type Errors = Partial<Record<keyof FormData, string>>;
 
 type Props = {
   isLoading?: boolean;
-  onRegister?: (data: Omit<FormData, 'confirmPassword' | 'termsAccepted'>) => void;
+  onRegister?: (
+    data: Omit<FormData, "confirmPassword" | "termsAccepted">,
+  ) => void;
 };
 
 export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
@@ -90,11 +93,13 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
     confirmPassword: "",
     termsAccepted: false,
   });
-  
+
   const [errors, setErrors] = useState<Errors>({});
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [localLoading, setLocalLoading] = useState(false);
-  const [companyOptions, setCompanyOptions] = useState<{ label: string; value: number }[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<
+    { label: string; value: number }[]
+  >([]);
 
   const activeLoading = isLoading ?? localLoading;
 
@@ -105,7 +110,7 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
           res.data.map((c: { companyId: number; companyName: string }) => ({
             label: c.companyName,
             value: c.companyId,
-          }))
+          })),
         );
       }
     });
@@ -113,7 +118,7 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
 
   const updateField = <K extends keyof FormData>(
     field: K,
-    value: FormData[K]
+    value: FormData[K],
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -146,7 +151,7 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
 
   const handleSubmit = async () => {
     const { confirmPassword, termsAccepted, ...registrationData } = formData;
-    
+
     try {
       await registrationSchema.validate(formData, { abortEarly: false });
       setErrors({});
@@ -161,7 +166,12 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
             Alert.alert(
               "Account Created",
               "Your employee registration request was submitted successfully! You can now log in.",
-              [{ text: "Go to Login", onPress: () => router.replace("/login") }]
+              [
+                {
+                  text: "Go to Login",
+                  onPress: () => router.replace("/login"),
+                },
+              ],
             );
           } else {
             // Handle field-level validation errors from API
@@ -176,7 +186,10 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
             }
           }
         } catch (e: any) {
-          Alert.alert("Error", e?.response?.data?.message || "Something went wrong");
+          Alert.alert(
+            "Error",
+            e?.response?.data?.message || "Something went wrong",
+          );
         } finally {
           setLocalLoading(false);
         }
@@ -274,7 +287,7 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
               placeholder="Enter 10-digit mobile number"
               value={formData.mobile_no}
               onChangeText={(val) => {
-                const cleaned = val.replace(/[^0-9]/g, '');
+                const cleaned = val.replace(/[^0-9]/g, "");
                 updateField("mobile_no", cleaned);
               }}
               error={errors.mobile_no}
@@ -282,7 +295,11 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
               maxLength={10}
               rightIcon={
                 formData.mobile_no.length === 10 ? (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.success}
+                  />
                 ) : undefined
               }
             />
@@ -302,7 +319,7 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
                 }}
                 error={errors.password}
               />
-              
+
               {/* Password Strength Indicator */}
               {formData.password.length > 0 && (
                 <View style={styles.passwordStrengthContainer}>
@@ -350,7 +367,9 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
             <View style={styles.termsContainer}>
               <Pressable
                 style={styles.checkboxContainer}
-                onPress={() => updateField("termsAccepted", !formData.termsAccepted)}
+                onPress={() =>
+                  updateField("termsAccepted", !formData.termsAccepted)
+                }
               >
                 <View
                   style={[
@@ -370,7 +389,9 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
                     <Text style={styles.termsLink}>Privacy Policy</Text>
                   </Text>
                   {errors.termsAccepted && (
-                    <Text style={styles.termsError}>{errors.termsAccepted}</Text>
+                    <Text style={styles.termsError}>
+                      {errors.termsAccepted}
+                    </Text>
                   )}
                 </View>
               </Pressable>
@@ -393,10 +414,10 @@ export default function EmployeeRegistration({ isLoading, onRegister }: Props) {
                 <Text style={styles.footerLink}>Sign In</Text>
               </Pressable>
             </View>
-
           </View>
         </View>
       </ScrollView>
+      <Footer />
     </KeyboardAvoidingView>
   );
 }

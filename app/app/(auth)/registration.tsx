@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import PrimaryButton from "@/components/common/PrimaryButton";
 import { theme } from "@/theme";
+import Footer from "@/components/common/Footer";
 
 const { colors, spacing, fontSize, fontWeight, radius } = theme;
 
@@ -96,6 +97,7 @@ export default function Registration() {
           </View>
         </View>
       </ScrollView>
+      <Footer />
     </SafeAreaView>
   );
 }

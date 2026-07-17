@@ -15,6 +15,7 @@ import { employeeLogin } from "@/services/auth/employee.service";
 import { saveSession } from "@/services/storage.service";
 import { theme } from "@/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Footer from "@/components/common/Footer";
 
 const { colors, spacing } = theme;
 
@@ -105,6 +106,7 @@ export default function Login() {
           <LoginForm isLoading={isLoading} onLogin={handleLogin} />
         </ScrollView>
       </KeyboardAvoidingView>
+      <Footer />
     </SafeAreaView>
   );
 }

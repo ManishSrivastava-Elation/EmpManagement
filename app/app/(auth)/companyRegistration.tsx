@@ -21,6 +21,7 @@ import FormInput from "@/components/common/FormInput";
 import PrimaryButton from "@/components/common/PrimaryButton";
 import { theme } from "@/theme";
 import { registerCompany } from "@/services/auth/company.service";
+import Footer from "@/components/common/Footer";
 
 const { colors, spacing, fontSize, fontWeight, radius } = theme;
 
@@ -54,23 +55,23 @@ const companyRegistrationSchema = yup.object({
     .string()
     .trim()
     .required("Mobile number is required")
-    .matches(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number starting with 6-9"),
-  company_logo: yup
-    .mixed()
-    .nullable()
-    .notRequired(),
+    .matches(
+      /^[6-9]\d{9}$/,
+      "Enter a valid 10-digit mobile number starting with 6-9",
+    ),
+  company_logo: yup.mixed().nullable().notRequired(),
   password: yup
     .string()
     .required("Password is required")
     .min(8, "Password must be at least 8 characters")
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain uppercase, lowercase, number & special character"
+      "Password must contain uppercase, lowercase, number & special character",
     ),
   confirmPassword: yup
     .string()
     .required("Please confirm your password")
-    .oneOf([yup.ref('password')], "Passwords don't match"),
+    .oneOf([yup.ref("password")], "Passwords don't match"),
   termsAccepted: yup
     .boolean()
     .oneOf([true], "You must accept the terms and conditions"),
@@ -94,7 +95,9 @@ type Errors = Partial<Record<keyof CompanyFormData, string>>;
 
 type Props = {
   isLoading?: boolean;
-  onRegister?: (data: Omit<CompanyFormData, 'confirmPassword' | 'termsAccepted'>) => void;
+  onRegister?: (
+    data: Omit<CompanyFormData, "confirmPassword" | "termsAccepted">,
+  ) => void;
 };
 
 export default function CompanyRegistration({ isLoading, onRegister }: Props) {
@@ -109,7 +112,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
     confirmPassword: "",
     termsAccepted: false,
   });
-  
+
   const [errors, setErrors] = useState<Errors>({});
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [localLoading, setLocalLoading] = useState(false);
@@ -120,7 +123,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
 
   const updateField = <K extends keyof CompanyFormData>(
     field: K,
-    value: CompanyFormData[K]
+    value: CompanyFormData[K],
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -153,10 +156,14 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
 
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to upload a logo.');
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Sorry, we need camera roll permissions to upload a logo.",
+        );
         return;
       }
 
@@ -171,8 +178,17 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
         const asset = result.assets[0];
         const fileName = asset.uri.split("/").pop() ?? "logo.jpg";
         const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
-        const mimeType = ext === "png" ? "image/png" : ext === "jpeg" || ext === "jpg" ? "image/jpeg" : "image/*";
-        updateField("company_logo", { uri: asset.uri, name: fileName, type: mimeType });
+        const mimeType =
+          ext === "png"
+            ? "image/png"
+            : ext === "jpeg" || ext === "jpg"
+              ? "image/jpeg"
+              : "image/*";
+        updateField("company_logo", {
+          uri: asset.uri,
+          name: fileName,
+          type: mimeType,
+        });
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -181,7 +197,12 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
   };
 
   const handleSubmit = async () => {
-    const { confirmPassword, termsAccepted, company_logo, ...registrationData } = formData;
+    const {
+      confirmPassword,
+      termsAccepted,
+      company_logo,
+      ...registrationData
+    } = formData;
 
     try {
       await companyRegistrationSchema.validate(formData, { abortEarly: false });
@@ -197,14 +218,17 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
         Alert.alert(
           "Company Registered",
           "Your company has been registered successfully! You can now log in.",
-          [{ text: "Go to Login", onPress: () => router.replace("/login") }]
+          [{ text: "Go to Login", onPress: () => router.replace("/login") }],
         );
       } else if (res.statusCode === 409) {
-        Alert.alert("Already Exists", res.message ?? "Company already registered.");
+        Alert.alert(
+          "Already Exists",
+          res.message ?? "Company already registered.",
+        );
       } else {
         const messages = Array.isArray(res.error)
           ? res.error.map((e: { message: string }) => e.message).join("\n")
-          : res.message ?? "Registration failed.";
+          : (res.message ?? "Registration failed.");
         Alert.alert("Error", messages);
       }
     } catch (err) {
@@ -259,9 +283,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
           <View style={styles.form}>
             {/* Company Logo Upload */}
             <View style={styles.logoContainer}>
-              <Text style={styles.label}>
-                Company Logo
-              </Text>
+              <Text style={styles.label}>Company Logo</Text>
               <TouchableOpacity
                 style={styles.logoUploadBox}
                 onPress={pickImage}
@@ -275,9 +297,17 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
                   />
                 ) : (
                   <View style={styles.logoPlaceholder}>
-                    <Ionicons name="cloud-upload-outline" size={40} color={colors.primary} />
-                    <Text style={styles.logoPlaceholderText}>Tap to upload logo</Text>
-                    <Text style={styles.logoPlaceholderSubtext}>PNG, JPG, JPEG (Max 2MB)</Text>
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={40}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.logoPlaceholderText}>
+                      Tap to upload logo
+                    </Text>
+                    <Text style={styles.logoPlaceholderSubtext}>
+                      PNG, JPG, JPEG (Max 2MB)
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -348,7 +378,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
               placeholder="Enter 10-digit mobile number"
               value={formData.mobile}
               onChangeText={(val) => {
-                const cleaned = val.replace(/[^0-9]/g, '');
+                const cleaned = val.replace(/[^0-9]/g, "");
                 updateField("mobile", cleaned);
               }}
               error={errors.mobile}
@@ -356,7 +386,11 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
               maxLength={10}
               rightIcon={
                 formData.mobile.length === 10 ? (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.success}
+                  />
                 ) : undefined
               }
             />
@@ -376,7 +410,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
                 }}
                 error={errors.password}
               />
-              
+
               {/* Password Strength Indicator */}
               {formData.password.length > 0 && (
                 <View style={styles.passwordStrengthContainer}>
@@ -424,7 +458,9 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
             <View style={styles.termsContainer}>
               <Pressable
                 style={styles.checkboxContainer}
-                onPress={() => updateField("termsAccepted", !formData.termsAccepted)}
+                onPress={() =>
+                  updateField("termsAccepted", !formData.termsAccepted)
+                }
               >
                 <View
                   style={[
@@ -444,7 +480,9 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
                     <Text style={styles.termsLink}>Privacy Policy</Text>
                   </Text>
                   {errors.termsAccepted && (
-                    <Text style={styles.termsError}>{errors.termsAccepted}</Text>
+                    <Text style={styles.termsError}>
+                      {errors.termsAccepted}
+                    </Text>
                   )}
                 </View>
               </Pressable>
@@ -470,6 +508,7 @@ export default function CompanyRegistration({ isLoading, onRegister }: Props) {
           </View>
         </View>
       </ScrollView>
+      <Footer />
     </KeyboardAvoidingView>
   );
 }
