@@ -22,11 +22,22 @@ const router = express.Router();
  * /api/admin/dashboard/stats:
  *   get:
  *     summary: Get dashboard statistics
+ *     description: Returns total employees, total expense, total withdrawal, and pending withdrawal for a given month/year.
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         schema: { type: integer, minimum: 1, maximum: 12 }
+ *         description: Month number (defaults to current month)
+ *       - in: query
+ *         name: year
+ *         schema: { type: integer }
+ *         description: Year (defaults to current year)
  *     responses:
- *       200: { description: Dashboard stats fetched }
+ *       200: { description: Dashboard stats fetched successfully }
+ *       500: { description: Failed to fetch dashboard stats }
  */
 router.get("/dashboard/stats", authenticateToken, getDashboardStats);
 
@@ -35,11 +46,22 @@ router.get("/dashboard/stats", authenticateToken, getDashboardStats);
  * /api/admin/dashboard/expense-by-type:
  *   get:
  *     summary: Get expense breakdown by type
+ *     description: Returns expense totals grouped by title/type for a given month/year.
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         schema: { type: integer, minimum: 1, maximum: 12 }
+ *         description: Month number (defaults to current month)
+ *       - in: query
+ *         name: year
+ *         schema: { type: integer }
+ *         description: Year (defaults to current year)
  *     responses:
- *       200: { description: Expense by type fetched }
+ *       200: { description: Expense by type fetched successfully }
+ *       500: { description: Failed to fetch expense by type }
  */
 router.get("/dashboard/expense-by-type", authenticateToken, getExpenseByType);
 
@@ -90,10 +112,12 @@ router.get("/attendance", authenticateToken, getAllAttendanceAdmin);
  *             type: object
  *             required: [Status]
  *             properties:
- *               Status: { type: string, enum: [present, absent, half-day, leave] }
+ *               Status: { type: string, enum: [pending, approved, rejected] }
  *     responses:
  *       200: { description: Status updated }
- *       403: { description: Forbidden }
+ *       400: { description: Invalid status or missing fields }
+ *       403: { description: Forbidden - only admin role }
+ *       500: { description: Failed to update attendance status }
  */
 router.put("/attendance/:attendanceId/status", authenticateToken, updateAttendanceStatus);
 
@@ -119,7 +143,9 @@ router.put("/attendance/:attendanceId/status", authenticateToken, updateAttendan
  *               Remarks: { type: string }
  *               Address: { type: string }
  *     responses:
- *       201: { description: Attendance added successfully }
+ *       201: { description: Attendance added successfully by admin }
+ *       400: { description: EmployeeId is required }
+ *       500: { description: Failed to add attendance }
  */
 router.post("/attendance/add", authenticateToken, validateZod(adminAddAttendanceSchema), adminAddAttendance);
 
@@ -143,7 +169,10 @@ router.post("/attendance/add", authenticateToken, validateZod(adminAddAttendance
  *               CheckOutTime: { type: string, format: date-time }
  *     responses:
  *       200: { description: Checkout successful }
- *       403: { description: Forbidden }
+ *       400: { description: AttendanceId and CheckOutTime are required }
+ *       403: { description: Forbidden - only admin role }
+ *       404: { description: Attendance record not found }
+ *       500: { description: Failed to checkout }
  */
 router.patch("/attendance/checkout", authenticateToken, adminCheckout);
 
@@ -167,11 +196,14 @@ router.patch("/attendance/checkout", authenticateToken, adminCheckout);
  *               amount: { type: number }
  *               description: { type: string }
  *               expenseType: { type: string }
- *               hasBill: { type: boolean }
+ *               hasBill: { type: boolean, description: If true, ReceiptUrl file is required }
  *               ReceiptUrl: { type: string, format: binary }
  *     responses:
  *       201: { description: Expense added successfully }
- *       403: { description: Forbidden }
+ *       400: { description: Bill file required when hasBill is true }
+ *       403: { description: Forbidden - only admin role }
+ *       404: { description: Employee not found in your company }
+ *       500: { description: Failed to add expense }
  */
 router.post("/expense/add", authenticateToken, upload.single("ReceiptUrl"), adminAddExpense);
 

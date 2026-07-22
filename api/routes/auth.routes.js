@@ -79,17 +79,32 @@ router.post("/login", validateZod(loginEmployeeSchema), loginEmployee);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [oldPassword, newPassword, confirmPassword]
+ *             required: [current_password, new_password, confirm_password]
  *             properties:
- *               oldPassword: { type: string }
- *               newPassword: { type: string }
- *               confirmPassword: { type: string }
+ *               current_password: { type: string }
+ *               new_password: { type: string }
+ *               confirm_password: { type: string }
  *     responses:
  *       200: { description: Password updated successfully }
- *       400: { description: Passwords do not match }
- *       401: { description: Old password incorrect }
+ *       400: { description: Old and new password same, or passwords do not match }
+ *       401: { description: Old password incorrect or invalid token }
+ *       404: { description: Employee not found }
  */
 router.put("/update-password", authenticateToken, validateZod(updatePasswordSchema), updatePassword);
+
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   get:
+ *     summary: Get authenticated employee profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200: { description: Profile fetched successfully }
+ *       401: { description: Invalid token payload }
+ *       404: { description: Employee not found }
+ */
 router.get("/profile", authenticateToken, getEmployeeProfile);
 
 export default router;

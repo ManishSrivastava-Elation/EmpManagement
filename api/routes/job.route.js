@@ -8,10 +8,17 @@ import { assignJob, createJob, getAllJobs, getJobDetails } from "../controllers/
 const router = express.Router();
 /**
  * @swagger
+ * tags:
+ *   name: Jobs
+ *   description: Job management
+ */
+
+/**
+ * @swagger
  * /api/job/create:
  *   post:
  *     summary: Create a new job
- *     description: Create a job for an existing customer.
+ *     description: Create a job for an existing customer. Only company role allowed.
  *     tags:
  *       - Jobs
  *     security:
@@ -37,11 +44,7 @@ const router = express.Router();
  *                 example: Install 2 Ton Split AC
  *               priority:
  *                 type: string
- *                 enum:
- *                   - LOW
- *                   - MEDIUM
- *                   - HIGH
- *                   - URGENT
+ *                 enum: [LOW, MEDIUM, HIGH, URGENT]
  *                 example: HIGH
  *               due_date:
  *                 type: string
@@ -69,7 +72,7 @@ router.post( "/create", authenticateToken, validateZod(createJobSchema), createJ
  * /api/job/list:
  *   get:
  *     summary: Get all jobs
- *     description: Company users see only their own jobs. Superadmin sees all.
+ *     description: Company sees own jobs; superadmin sees all; employee sees only assigned jobs.
  *     tags:
  *       - Jobs
  *     security:
@@ -102,14 +105,13 @@ router.post( "/create", authenticateToken, validateZod(createJobSchema), createJ
  *         schema: { type: string, format: date }
  *       - in: query
  *         name: sortBy
- *         schema: { type: string, default: created_at }
- *         description: "Allowed: id, job_title, priority, due_date, created_at"
+ *         schema: { type: string, enum: [id, job_title, priority, due_date, created_at], default: created_at }
  *       - in: query
  *         name: order
  *         schema: { type: string, enum: [ASC, DESC], default: DESC }
  *     responses:
  *       200:
- *         description: Jobs fetched successfully
+ *         description: Jobs fetched successfully with pagination meta
  *       403:
  *         description: Access denied
  *       500:
@@ -167,7 +169,7 @@ router.post( "/assign", authenticateToken, validateZod(assignJobSchema), assignJ
  * /api/job/details/{id}:
  *   get:
  *     summary: Get job details by ID
- *     description: Returns full job info including customer and assigned employee.
+ *     description: Returns full job info including customer and assigned employee. Company sees any of their jobs; employee sees only assigned jobs.
  *     tags:
  *       - Jobs
  *     security:
@@ -186,7 +188,7 @@ router.post( "/assign", authenticateToken, validateZod(assignJobSchema), assignJ
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Only company can access job details
+ *         description: Access denied
  *       404:
  *         description: Job not found
  *       500:

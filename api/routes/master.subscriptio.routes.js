@@ -16,7 +16,7 @@ const router = express.Router();
  * /api/master-subscriptions:
  *   get:
  *     summary: Get all subscription plans
- *     description: Returns all master subscription plans. Company role sees only ACTIVE plans; admin sees all.
+ *     description: Company role sees only ACTIVE plans; admin role sees all plans.
  *     tags: [MasterSubscriptions]
  *     security:
  *       - bearerAuth: []
@@ -26,7 +26,9 @@ const router = express.Router();
  *       401:
  *         description: Invalid token payload
  *       403:
- *         description: Access denied
+ *         description: Access denied - only company or admin role
+ *       500:
+ *         description: Failed to fetch subscriptions
  */
 router.get("/", authenticateToken, getMasterSubscriptions)
 

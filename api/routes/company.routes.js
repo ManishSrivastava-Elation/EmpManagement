@@ -73,7 +73,10 @@ router.post("/", upload.single("logo"), validateZod(createCompanySchema), create
  *               password: { type: string }
  *     responses:
  *       200: { description: Login successful, returns JWT token }
+ *       400: { description: Email or mobile and password are required }
  *       401: { description: Invalid credentials }
+ *       403: { description: Company not active or not verified }
+ *       404: { description: Company not found }
  */
 router.post("/login", validateZod(loginCompanySchema), loginCompany);
 
@@ -92,6 +95,16 @@ router.post("/login", validateZod(loginCompanySchema), loginCompany);
  *       - in: query
  *         name: search
  *         schema: { type: string }
+ *         description: Search by company name
+ *       - in: query
+ *         name: company_id
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: sortBy
+ *         schema: { type: string, enum: [company_id, company_name, created_at, status], default: created_at }
+ *       - in: query
+ *         name: order
+ *         schema: { type: string, enum: [ASC, DESC], default: DESC }
  *       - in: query
  *         name: page
  *         schema: { type: integer, default: 1 }
@@ -99,7 +112,8 @@ router.post("/login", validateZod(loginCompanySchema), loginCompany);
  *         name: limit
  *         schema: { type: integer, default: 10 }
  *     responses:
- *       200: { description: Companies fetched successfully }
+ *       200: { description: Companies fetched successfully with pagination meta }
+ *       500: { description: Internal server error }
  */
 router.get("/", authenticateToken, getCompanies);
 
@@ -114,11 +128,60 @@ router.get("/", authenticateToken, getCompanies);
  *       - in: query
  *         name: search
  *         schema: { type: string }
+ *         description: Search by company name
  *     responses:
  *       200: { description: Company options fetched successfully }
+ *       500: { description: Internal server error }
  */
 router.get("/options", getCompanyOptions);
+
+/**
+ * @swagger
+ * /api/companies/customers/options:
+ *   get:
+ *     summary: Get customer options for the authenticated company
+ *     description: Returns lightweight customer list (id + name) for dropdowns. Only company role allowed.
+ *     tags: [Companies]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Search by customer name or phone
+ *     responses:
+ *       200: { description: Customer options fetched successfully }
+ *       403: { description: Only company can fetch customer options }
+ *       500: { description: Internal server error }
+ */
 router.get("/customers/options", authenticateToken, getCustomerOptions);
+
+/**
+ * @swagger
+ * /api/companies/password:
+ *   put:
+ *     summary: Update company password
+ *     tags: [Companies]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [current_password, new_password, confirm_password]
+ *             properties:
+ *               current_password: { type: string }
+ *               new_password: { type: string }
+ *               confirm_password: { type: string }
+ *     responses:
+ *       200: { description: Password updated successfully }
+ *       400: { description: Old and new password same, or passwords do not match }
+ *       401: { description: Old password incorrect or invalid token }
+ *       404: { description: Company not found }
+ */
+router.put("/password", authenticateToken, validateZod(updatePasswordSchema), updateCompanyPassword);
 
 /**
  * @swagger
@@ -144,12 +207,14 @@ router.get("/customers/options", authenticateToken, getCustomerOptions);
  *               designation: { type: string }
  *               email: { type: string }
  *               mobile: { type: string }
+ *               email_verified: { type: integer, enum: [0, 1] }
+ *               mobile_verified: { type: integer, enum: [0, 1] }
  *               status: { type: string, enum: [ACTIVE, INACTIVE] }
  *               logo: { type: string, format: binary }
  *     responses:
  *       200: { description: Company updated successfully }
+ *       500: { description: Internal server error }
  */
-router.put("/password", authenticateToken, validateZod(updatePasswordSchema), updateCompanyPassword);
 router.put("/:id", upload.single("logo"), authenticateToken, validateZod(updateCompanySchema), updateCompany);
 
 /**

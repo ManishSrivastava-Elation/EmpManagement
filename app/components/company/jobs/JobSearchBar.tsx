@@ -11,11 +11,15 @@ interface Props {
   activeFilterCount: number;
   totalJobs: number;
   onOpenFilter: () => void;
+  singularLabel?: string;
+  pluralLabel?: string;
 }
 
 const JobSearchBar = memo(({
   searchQuery, onSearchChange, onClearSearch,
   activeFilterCount, totalJobs, onOpenFilter,
+  singularLabel = 'Record',
+  pluralLabel = 'Records',
 }: Props) => (
   <View style={styles.container}>
     <View style={styles.searchRow}>
@@ -51,7 +55,7 @@ const JobSearchBar = memo(({
         )}
       </TouchableOpacity>
     </View>
-    <Text style={styles.recordsLabel}>{totalJobs} {totalJobs === 1 ? 'Job' : 'Jobs'}</Text>
+    <Text style={styles.recordsLabel}>{totalJobs} {totalJobs === 1 ? singularLabel : pluralLabel}</Text>
   </View>
 ));
 
